@@ -106,6 +106,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "guest"
+version = "0.1.0"
+dependencies = [
+ "platform",
+]
+
+[[package]]
+name = "guest-ld"
+version = "0.1.0"
+
+[[package]]
 name = "heck"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -177,9 +188,9 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "helloworld",
- "qemu-virt",
- "qemu-virt-ld",
+ "echo",
+ "guest",
+ "guest-ld",
  "stdio",
 ]
 

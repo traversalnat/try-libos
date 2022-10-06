@@ -10,6 +10,7 @@ fn obj_main() {
     app::app_main();
 }
 
+#[cfg(not(feature = "build_for_guest"))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");

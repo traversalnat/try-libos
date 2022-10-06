@@ -4,9 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/helloworld", package = "helloworld" }
-platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
+app = { path = "../apps/echo", package = "echo" }
+platform = { path = "../platforms/guest", package = "guest" }
 stdio = { path = "../libs/stdio" }
 
 [build-dependencies]
-linker = { path = "../platforms/qemu-virt-ld", package = "qemu-virt-ld" }
+linker = { path = "../platforms/guest-ld", package = "guest-ld" }
+
+[features]
+default = ["x86_64-apple-darwin", "build_for_guest"]
+riscv64gc-unknown-none-elf = []
+x86_64-apple-darwin = []
+build_for_guest = []
+

@@ -9,12 +9,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const TARGET_ARCH: &str = "riscv64gc-unknown-none-elf";
+// TODO 设置TARGET_ARCH可配置
+// const TARGET_ARCH: &str = "riscv64gc-unknown-none-elf";
+const TARGET_ARCH: &str = "x86_64-apple-darwin";
+static TARGET: Lazy<PathBuf> = Lazy::new(|| PROJECT.join("target").join(TARGET_ARCH));
 
 static PROJECT: Lazy<&'static Path> =
     Lazy::new(|| Path::new(std::env!("CARGO_MANIFEST_DIR")).parent().unwrap());
-
-static TARGET: Lazy<PathBuf> = Lazy::new(|| PROJECT.join("target").join(TARGET_ARCH));
 
 #[derive(Parser)]
 #[clap(name = "perf-playground")]
@@ -28,6 +29,7 @@ struct Cli {
 enum Commands {
     Make(BuildArgs),
     Asm(BuildArgs),
+    Guest(BuildArgs),
     Qemu(BuildArgs),
 }
 
@@ -36,6 +38,7 @@ fn main() {
     match Cli::parse().command {
         Make(args) => args.make(),
         Asm(args) => args.asm(),
+        Guest(args) => args.guest(),
         Qemu(args) => args.qemu(),
     }
 }
@@ -51,10 +54,13 @@ struct BuildArgs {
     /// log level
     #[clap(long)]
     log: Option<String>,
+    #[clap(long)]
+    guest: Option<String>,
 }
 
 impl BuildArgs {
     fn make(&self) {
+        let is_guest = self.guest.is_some();
         fs::write(
             PROJECT.join("obj").join("Cargo.toml"),
             format!(
@@ -71,8 +77,21 @@ stdio = {{ path = \"../libs/stdio\" }}
 
 [build-dependencies]
 linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
+
+[features]
+default = [{2}]
+riscv64gc-unknown-none-elf = []
+x86_64-apple-darwin = []
+build_for_guest = []
+
 ",
-                self.app, self.plat
+                self.app,
+                self.plat,
+                if is_guest {
+                    "\"x86_64-apple-darwin\", \"build_for_guest\""
+                } else {
+                    "\"riscv64gc-unknown-none-elf\""
+                }
             ),
         )
         .unwrap();
@@ -80,6 +99,9 @@ linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
             .package("obj")
             .optional(&self.log, |cargo, level| {
                 cargo.env("LOG", level);
+            })
+            .optional(&self.guest, |cargo, _| {
+                cargo.env("RUSTFLAGS", "--cfg build_for_guest");
             })
             .release()
             .target(TARGET_ARCH)
@@ -91,6 +113,15 @@ linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
         let elf = TARGET.join("release").join("obj");
         let out = PROJECT.join("kernel.asm");
         fs::write(out, BinUtil::objdump().arg(elf).arg("-d").output().stdout).unwrap();
+    }
+
+    fn guest(&self) {
+        use std::process::Command;
+        self.make();
+        let elf = TARGET.join("release").join("obj");
+        let mut command = Command::new(elf.to_owned());
+        let status = command.status().expect("guest failed");
+        assert!(status.success());
     }
 
     fn qemu(&self) {
