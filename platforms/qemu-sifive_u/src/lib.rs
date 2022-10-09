@@ -34,7 +34,7 @@ unsafe extern "C" fn _start() -> ! {
 
 extern "C" fn rust_main() -> ! {
     obj_main();
-    system_reset(RESET_TYPE_SHUTDOWN, RESET_REASON_NO_REASON);
+    let ret = system_reset(RESET_TYPE_SHUTDOWN, RESET_REASON_NO_REASON);
     unreachable!()
 }
 

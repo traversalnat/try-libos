@@ -5,12 +5,14 @@ use platform::{Platform, PlatformImpl};
 
 #[no_mangle]
 fn obj_main() {
+    mem::init_heap();
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
+    net::init(&PhyNet);
     app::app_main();
 }
 
-#[cfg(not(feature = "build_for_guest"))]
+#[cfg(not(feature = "std"))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
@@ -19,6 +21,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 
 struct Stdio;
+struct PhyNet;
 
 impl stdio::Stdio for Stdio {
     #[inline]
@@ -34,5 +37,15 @@ impl stdio::Stdio for Stdio {
     #[inline]
     fn get_char(&self) -> u8 {
         PlatformImpl::console_getchar()
+    }
+}
+
+impl net::PhyNet for PhyNet {
+    fn receive(&self, buf: &mut [u8]) -> usize {
+        PlatformImpl::net_receive(buf)
+    }
+
+    fn transmit(&self, buf: &mut [u8]) {
+        PlatformImpl::net_transmit(buf);
     }
 }

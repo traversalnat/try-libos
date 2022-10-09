@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/echo", package = "echo" }
+app = { path = "../apps/server", package = "server" }
 platform = { path = "../platforms/guest", package = "guest" }
 stdio = { path = "../libs/stdio" }
+net = { path = "../libs/net" }
+mem = { path = "../libs/mem", features = ["std"] }
 
 [build-dependencies]
 linker = { path = "../platforms/guest-ld", package = "guest-ld" }
 
 [features]
-default = ["x86_64-apple-darwin", "build_for_guest"]
-riscv64gc-unknown-none-elf = []
-x86_64-apple-darwin = []
-build_for_guest = []
+default = ["std"]
+std = []
 

@@ -3,6 +3,8 @@ members = [
     "xtask",
     "libs/stdio",
     "libs/time",
+    "libs/net",
+    "libs/mem",
     "platforms/guest",
     "platforms/qemu-virt",
     "platforms/qemu-virt-ld",
@@ -10,6 +12,7 @@ members = [
     "platforms/qemu-sifive_u-ld",
     "apps/helloworld",
     "apps/echo",
+    "apps/server",
     "obj",
 ]
 default-members = ["xtask"]

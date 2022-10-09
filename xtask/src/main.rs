@@ -74,24 +74,24 @@ edition = \"2021\"
 app = {{ path = \"../apps/{0}\", package = \"{0}\" }}
 platform = {{ path = \"../platforms/{1}\", package = \"{1}\" }}
 stdio = {{ path = \"../libs/stdio\" }}
+net = {{ path = \"../libs/net\" }}
+mem = {{ path = \"../libs/mem\", features = [{2}] }}
 
 [build-dependencies]
 linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
 
 [features]
 default = [{2}]
-riscv64gc-unknown-none-elf = []
-x86_64-apple-darwin = []
-build_for_guest = []
+std = []
 
 ",
                 self.app,
                 self.plat,
                 if is_guest {
-                    "\"x86_64-apple-darwin\", \"build_for_guest\""
+                    "\"std\""
                 } else {
-                    "\"riscv64gc-unknown-none-elf\""
-                }
+                    ""
+                },
             ),
         )
         .unwrap();
@@ -101,7 +101,7 @@ build_for_guest = []
                 cargo.env("LOG", level);
             })
             .optional(&self.guest, |cargo, _| {
-                cargo.env("RUSTFLAGS", "--cfg build_for_guest");
+                cargo.env("RUSTFLAGS", "--cfg std");
             })
             .release()
             .target(TARGET_ARCH)

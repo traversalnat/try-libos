@@ -6,8 +6,7 @@
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=LOG");
-    if cfg!(feature = "build_for_guest") {
-    } else {
+    if cfg!(not(feature = "std")) {
         println!("cargo:rustc-link-arg=-T{}", ld.display());
     }
 }
