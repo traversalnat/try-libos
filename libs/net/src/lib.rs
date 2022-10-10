@@ -16,12 +16,13 @@ pub trait PhyNet: Sync {
 // 网络物理设备
 static PHYNET: Once<&'static dyn PhyNet> = Once::new();
 
-pub static ETHERNET: GlobalEthernetDriver = GlobalEthernetDriver::initialize();
+pub static ETHERNET: GlobalEthernetDriver = GlobalEthernetDriver::uninitialized();
 
 /// 主要是给 obj 确认使用哪个 platform 提供的函数来注入 PhyNet
 pub fn init(net: &'static dyn PhyNet) {
     // TODO 使用 PHYNET 提供的发送、接收 raw packet 的方法重写 Loopback 设备
     PHYNET.call_once(|| net);
+    ETHERNET.initialize();
 }
 
 // TODO 提供与 socket 交互的 api
