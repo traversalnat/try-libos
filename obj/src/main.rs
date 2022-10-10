@@ -5,10 +5,12 @@ use platform::{Platform, PlatformImpl};
 
 #[no_mangle]
 fn obj_main() {
+    // 连接 platform 和 libs
     mem::init_heap();
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
     net::init(&PhyNet);
+    // 初始化运行环境后，跳转至 app_main
     app::app_main();
 }
 

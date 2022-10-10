@@ -5,6 +5,7 @@ members = [
     "libs/time",
     "libs/net",
     "libs/mem",
+    "libs/var_bitmap",
     "platforms/guest",
     "platforms/qemu-virt",
     "platforms/qemu-virt-ld",
