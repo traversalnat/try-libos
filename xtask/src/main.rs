@@ -6,13 +6,8 @@ use command_ext::{BinUtil, Cargo, CommandExt, Qemu};
 use once_cell::sync::Lazy;
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, 
 };
-
-// TODO 设置TARGET_ARCH可配置
-// const TARGET_ARCH: &str = "riscv64gc-unknown-none-elf";
-const TARGET_ARCH: &str = "x86_64-apple-darwin";
-static TARGET: Lazy<PathBuf> = Lazy::new(|| PROJECT.join("target").join(TARGET_ARCH));
 
 static PROJECT: Lazy<&'static Path> =
     Lazy::new(|| Path::new(std::env!("CARGO_MANIFEST_DIR")).parent().unwrap());
@@ -36,7 +31,7 @@ enum Commands {
 fn main() {
     use Commands::*;
     match Cli::parse().command {
-        Make(args) => args.make(),
+        Make(args) => { args.make(false); },
         Asm(args) => args.asm(),
         Guest(args) => args.guest(),
         Qemu(args) => args.qemu(),
@@ -54,13 +49,10 @@ struct BuildArgs {
     /// log level
     #[clap(long)]
     log: Option<String>,
-    #[clap(long)]
-    guest: Option<String>,
 }
 
 impl BuildArgs {
-    fn make(&self) {
-        let is_guest = self.guest.is_some();
+    fn make(&self, is_std: bool) -> PathBuf {
         fs::write(
             PROJECT.join("obj").join("Cargo.toml"),
             format!(
@@ -87,7 +79,7 @@ std = []
 ",
                 self.app,
                 self.plat,
-                if is_guest {
+                if is_std {
                     "\"std\""
                 } else {
                     ""
@@ -95,38 +87,40 @@ std = []
             ),
         )
         .unwrap();
+        let build_tool: &str = match is_std {
+            true => "x86_64-apple-darwin",
+            false => "riscv64gc-unknown-none-elf",
+        };
         Cargo::build()
             .package("obj")
             .optional(&self.log, |cargo, level| {
                 cargo.env("LOG", level);
             })
-            .optional(&self.guest, |cargo, _| {
-                cargo.env("RUSTFLAGS", "--cfg std");
-            })
             .release()
-            .target(TARGET_ARCH)
+            .target(build_tool)
             .invoke();
+        PROJECT.join("target").join(build_tool)
     }
 
     fn asm(&self) {
-        self.make();
-        let elf = TARGET.join("release").join("obj");
+        let target = self.make(false);
+        let elf = target.join("release").join("obj");
         let out = PROJECT.join("kernel.asm");
         fs::write(out, BinUtil::objdump().arg(elf).arg("-d").output().stdout).unwrap();
     }
 
     fn guest(&self) {
         use std::process::Command;
-        self.make();
-        let elf = TARGET.join("release").join("obj");
+        let target = self.make(true);
+        let elf = target.join("release").join("obj");
         let mut command = Command::new(elf.to_owned());
         let status = command.status().expect("guest failed");
         assert!(status.success());
     }
 
     fn qemu(&self) {
-        self.make();
-        let elf = TARGET.join("release").join("obj");
+        let target = self.make(false);
+        let elf = target.join("release").join("obj");
         Qemu::system("riscv64")
             .args(["-machine", self.plat.strip_prefix("qemu-").unwrap()])
             .arg("-kernel")

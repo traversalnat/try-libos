@@ -6,3 +6,5 @@
 /target
 *.asm
 *.bin
+/Cargo.lock
+/obj/Cargo.toml
