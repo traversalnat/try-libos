@@ -18,3 +18,8 @@ cargo qemu --plat <PLAT> --app <APP>
 | --------- | ------- | -
 | 使用广泛   | 静态链接 | 动态注入
 | 使用不广泛 | feature | feature
+
+- TODO
+- libs 
+    - timer 
+    - net socket syscall

@@ -11,10 +11,17 @@ pub trait Platform {
     }
 
     // net: 默认不要求实现
-    fn net_receive(buf: &mut [u8]) -> usize {
+    fn net_receive(_buf: &mut [u8]) -> usize {
         0
     }
-    fn net_transmit(buf: &mut [u8]) {}
+    fn net_transmit(_buf: &mut [u8]) {}
+
+    // timer:
+    fn schedule_with_delay<F>(_delay: core::time::Duration, _cb: F)
+    where
+        F: 'static + FnMut() + Send,
+    {
+    }
 
     fn frequency() -> usize;
     fn rdtime() -> usize;

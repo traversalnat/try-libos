@@ -1,6 +1,9 @@
 #![no_std]
 #![feature(alloc_error_handler)]
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use buddy_system_allocator::LockedHeap;
 
 #[cfg(not(feature = "std"))]
@@ -8,7 +11,7 @@ use buddy_system_allocator::LockedHeap;
 /// heap allocator instance
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub const KERNEL_HEAP_SIZE: usize = 0x30_0000;
+pub const KERNEL_HEAP_SIZE: usize = 0x300_0000;
 
 #[cfg(not(feature = "std"))]
 #[alloc_error_handler]

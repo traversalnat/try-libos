@@ -4,18 +4,22 @@ use alloc::collections::BTreeMap;
 use alloc::collections::VecDeque;
 use alloc::vec;
 use alloc::vec::Vec;
-use smoltcp::iface::SocketHandle;
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
-use smoltcp::time::{Duration, Instant};
 use smoltcp::Result;
 
 use spin::Mutex;
 
+use stdio::println;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
 pub type Interface<T> = smoltcp::iface::Interface<'static, T>;
+pub type InterfaceInner = smoltcp::iface::Context<'static>;
+pub use smoltcp::time::Instant as Instant;
+pub use smoltcp::time::Duration as Duration;
+pub use smoltcp::iface::SocketHandle as SocketHandle;
+pub use smoltcp::socket::TcpState as TcpState;
 
 /// A loopback device.
 #[derive(Debug)]
@@ -100,8 +104,8 @@ impl<'a> phy::TxToken for TxToken<'a> {
 }
 
 /// Creates and returns a new interface using `Loopback` struct.
-pub fn create_interface() -> Interface<Loopback> {
-    let device = Loopback::new(Medium::Ethernet);
+pub fn create_interface() -> Interface<smoltcp::phy::Loopback> {
+    let device = smoltcp::phy::Loopback::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::default();
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
     let ip_addrs = [];
@@ -118,7 +122,7 @@ pub struct EthernetDriver {
     /// Bitmap to track the port usage
     port_map: Bitmap,
     /// Internal ethernet interface
-    ethernet: Interface<Loopback>,
+    ethernet: Interface<smoltcp::phy::Loopback>,
 }
 
 impl EthernetDriver {
@@ -140,7 +144,10 @@ impl EthernetDriver {
     /// Returns an advisory wait time to call `poll()` the next time.
     /// See also `smoltcp::iface::Interface::poll_delay()`.
     fn poll_delay(&mut self, timestamp: Instant) -> Duration {
-        self.ethernet.poll_delay(timestamp).unwrap()
+        match self.ethernet.poll_delay(timestamp) {
+            Some(dur) => dur,
+            _ => Duration::from_millis(1),
+        }
     }
 
     /// Marks a port as used. Returns `Some(port)` on success, `None` on failure.
@@ -176,6 +183,10 @@ impl EthernetDriver {
     /// Finds a socket with a `SocketHandle`.
     pub fn get_socket(&mut self, handle: SocketHandle) -> &mut TcpSocket {
         self.ethernet.get_socket::<TcpSocket>(handle)
+    }
+
+    pub fn get_context(&mut self, handle: SocketHandle) -> &mut InterfaceInner {
+        self.ethernet.get_socket_and_context::<TcpSocket>(handle).1
     }
 
     /// This function creates a new TCP socket, adds it to the internal socket
@@ -230,6 +241,15 @@ impl GlobalEthernetDriver {
             .mark_port(port)
     }
 
+    pub fn release_port(&self, port: u16) {
+        self.0
+            .lock()
+            .as_mut()
+            .expect("Uninitialized EthernetDriver")
+            .erase_port(port);
+    }
+
+    // 获取短暂使用的端口
     pub fn get_ephemeral_port(&self) -> Option<u16> {
         self.0
             .lock()

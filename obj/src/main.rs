@@ -1,7 +1,11 @@
 #![no_std]
 #![no_main]
 
+use core::sync::atomic::{AtomicI64, Ordering};
+
 use platform::{Platform, PlatformImpl};
+
+use stdio::{log, println};
 
 #[no_mangle]
 fn obj_main() {
@@ -9,9 +13,20 @@ fn obj_main() {
     mem::init_heap();
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
-    net::init(&PhyNet);
+    init_ethernet();
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
+}
+
+fn init_ethernet() {
+    net::init(&PhyNet);
+    let delay = net::ETHERNET.poll_delay(net::Instant::from_secs(0));
+    PlatformImpl::schedule_with_delay(delay.into(), move || {
+        println!("hello");
+        static TIMESTAMP: AtomicI64 = AtomicI64::new(0);
+        let val = TIMESTAMP.fetch_add(1, Ordering::SeqCst);
+        net::ETHERNET.poll(net::Instant::from_millis(val));
+    });
 }
 
 #[cfg(not(feature = "std"))]

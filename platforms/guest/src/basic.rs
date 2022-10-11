@@ -1,6 +1,21 @@
 pub struct MacOS;
 
-use std::{io::{Read, Write}, process::exit};
+use std::{
+    io::{Read, Write},
+    process::exit,
+    sync::Arc,
+    sync::Mutex,
+};
+
+use chrono::Duration as ChroneDuration;
+use core::time::Duration;
+use lazy_static::*;
+
+use timer::*;
+
+lazy_static! {
+    static ref GTIMER: Arc<Mutex<Timer>> = Arc::new(Mutex::new(Timer::new()));
+}
 
 impl platform::Platform for MacOS {
     #[inline]
@@ -22,15 +37,28 @@ impl platform::Platform for MacOS {
     }
 
     #[inline]
-    fn net_receive(buf: &mut [u8]) -> usize {
+    fn net_receive(_buf: &mut [u8]) -> usize {
         // TODO 实现接收 raw 数据的方法
         // 目前 smoltcp 物理层使用 loopback 设备(本地回环), 暂不实现这个方法
         0
     }
 
     #[inline]
-    fn net_transmit(buf: &mut [u8]) {
+    fn net_transmit(_buf: &mut [u8]) {
         // TODO 实现发送 raw 数据的方法
+    }
+
+    #[inline]
+    fn schedule_with_delay<F>(_delay: Duration, cb: F)
+    where
+        F: 'static + FnMut() + Send,
+    {
+        GTIMER
+            .lock()
+            .unwrap()
+            .schedule_with_delay(ChroneDuration::milliseconds(1), || {
+                Self::console_put_str("hello");
+            });
     }
 
     #[inline]
