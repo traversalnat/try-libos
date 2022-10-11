@@ -1,11 +1,9 @@
 #![no_std]
 #![no_main]
 
-use core::sync::atomic::{AtomicI64, Ordering};
+use core::{sync::atomic::{AtomicI64, Ordering::SeqCst}, time::Duration};
 
 use platform::{Platform, PlatformImpl};
-
-use stdio::{log, println};
 
 #[no_mangle]
 fn obj_main() {
@@ -20,12 +18,12 @@ fn obj_main() {
 
 fn init_ethernet() {
     net::init(&PhyNet);
-    let delay = net::ETHERNET.poll_delay(net::Instant::from_secs(0));
-    PlatformImpl::schedule_with_delay(delay.into(), move || {
-        println!("hello");
+    PlatformImpl::schedule_with_delay(Duration::from_millis(1), move || {
         static TIMESTAMP: AtomicI64 = AtomicI64::new(0);
-        let val = TIMESTAMP.fetch_add(1, Ordering::SeqCst);
+        let val = TIMESTAMP.fetch_add(0, SeqCst);
         net::ETHERNET.poll(net::Instant::from_millis(val));
+        let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
+        TIMESTAMP.fetch_add(delay.total_millis() as i64, SeqCst);
     });
 }
 

@@ -3,18 +3,17 @@
 mod ethernet;
 
 use core::result::Result;
-pub use smoltcp::wire::{IpAddress as IpAddress, IpEndpoint as IpEndpoint};
+pub use smoltcp::wire::{IpAddress, IpEndpoint};
 // pub type TcpSocket = ethernet::TcpSocket;
 // pub type Interface<T> = ethernet::Interface<T>;
 pub use ethernet::Duration;
 pub use ethernet::Instant;
 pub use ethernet::SocketHandle;
-pub use ethernet::TcpState as TcpState;
+pub use ethernet::TcpState;
 
 use ethernet::GlobalEthernetDriver;
 
 use spin::Once;
-use stdio::println;
 
 /// 这个接口定义了网络物理层receive, transmit
 pub trait PhyNet: Sync {
@@ -35,28 +34,37 @@ pub fn init(net: &'static dyn PhyNet) {
     ETHERNET.initialize();
 }
 
+pub struct SocketState {
+    pub is_active: bool,
+    pub is_listening: bool,
+    pub can_send: bool,
+    pub can_recv: bool,
+}
+
 // TODO 提供与 socket 交互的 api
 
 pub fn sys_sock_create() -> SocketHandle {
     ETHERNET.add_socket()
 }
 
-pub fn sys_sock_status(sock: SocketHandle) -> TcpState {
+pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
     ETHERNET.with_socket(sock, |socket| {
-        socket.state()
+        SocketState {
+            is_active: socket.is_active(),
+            is_listening: socket.is_listening(),
+            can_send: socket.can_send(),
+            can_recv: socket.can_recv(),
+        }
     })
 }
 
-pub fn sys_sock_connect(sock: SocketHandle, remote_endpoint: impl Into<IpEndpoint>) -> Result<(), smoltcp::Error> {
+pub fn sys_sock_connect(
+    sock: SocketHandle,
+    remote_endpoint: impl Into<IpEndpoint>,
+) -> Result<(), smoltcp::Error> {
     if let Some(port) = ETHERNET.get_ephemeral_port() {
-        let local_endpoint =
-            IpEndpoint::new(IpAddress::v4(127, 0, 0, 1), port);
-        ETHERNET.critical(|eth| {
-            let cx = eth.get_context(sock);
-            ETHERNET.with_socket(sock, |socket| {
-                socket.connect(cx, remote_endpoint, local_endpoint)
-            })
-        })
+        ETHERNET
+            .with_socket_and_context(sock, |socket, cx| socket.connect(cx, remote_endpoint, port))
     } else {
         Err(smoltcp::Error::NotSupported)
     }
@@ -64,28 +72,36 @@ pub fn sys_sock_connect(sock: SocketHandle, remote_endpoint: impl Into<IpEndpoin
 
 pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Result<(), smoltcp::Error> {
     if let Some(port) = ETHERNET.mark_port(local_port) {
-        let local_endpoint = IpEndpoint::new(IpAddress::v4(127, 0, 0, 1), port);
-        ETHERNET.with_socket(sock, |socket| {
-            socket.listen(local_endpoint)
-        })
+        ETHERNET.with_socket(sock, |socket| socket.listen(port))
     } else {
         Err(smoltcp::Error::NotSupported)
     }
 }
 
-pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Result<usize, smoltcp::Error> {
+// -> Result<usize, smoltcp::Error>
+pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     ETHERNET.with_socket(sock, |socket| {
-        socket.send_slice(va)
+        if socket.can_send() {
+            match socket.send_slice(va) {
+                Ok(size) => Some(size),
+                _ => None,
+            }
+        } else {
+            None
+        }
     })
 }
 
 /// Receives data from a connected socket.
-pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Result<usize, smoltcp::Error> {
+pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     ETHERNET.with_socket(sock, |socket| {
-        socket.recv_slice(va)
+        if socket.can_recv() {
+            match socket.recv_slice(va) {
+                Ok(size) => Some(size),
+                _ => None,
+            }
+        } else {
+           None
+        }
     })
-}
-
-pub fn sys_sock_poll() {
-    ETHERNET.poll(Instant::from_millis(0));
 }

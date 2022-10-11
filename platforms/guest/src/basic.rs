@@ -3,19 +3,14 @@ pub struct MacOS;
 use std::{
     io::{Read, Write},
     process::exit,
-    sync::Arc,
-    sync::Mutex,
+    thread,
 };
 
-use chrono::Duration as ChroneDuration;
+use rawsock::open_best_library;
+
 use core::time::Duration;
-use lazy_static::*;
 
-use timer::*;
-
-lazy_static! {
-    static ref GTIMER: Arc<Mutex<Timer>> = Arc::new(Mutex::new(Timer::new()));
-}
+pub const ITERF_NAME: &str = "en0";
 
 impl platform::Platform for MacOS {
     #[inline]
@@ -36,29 +31,48 @@ impl platform::Platform for MacOS {
         if let Ok(_e) = stdout.write(&buf) {}
     }
 
+    /// 构建一个 NAT 设备
     #[inline]
-    fn net_receive(_buf: &mut [u8]) -> usize {
-        // TODO 实现接收 raw 数据的方法
-        // 目前 smoltcp 物理层使用 loopback 设备(本地回环), 暂不实现这个方法
+    fn net_receive(buf: &mut [u8]) -> usize {
+        if let Ok(lib) = open_best_library() {
+            if let Ok(mut iterf) = lib.open_interface(&ITERF_NAME) {
+                if let Ok(packet) = iterf.receive() {
+                    buf.fill(0);
+                    for i in 0..packet.len() {
+                        buf[0] = packet[i];
+                    }
+                    return packet.len();
+                }
+            }
+        }
         0
     }
 
     #[inline]
     fn net_transmit(_buf: &mut [u8]) {
-        // TODO 实现发送 raw 数据的方法
+        if let Ok(lib) = open_best_library() {
+            if let Ok(iterf) = lib.open_interface(&ITERF_NAME) {
+                iterf.send(_buf).unwrap_or(());
+            }
+        }
     }
 
-    #[inline]
-    fn schedule_with_delay<F>(_delay: Duration, cb: F)
+    fn schedule_with_delay<F>(_delay: Duration, mut cb: F)
     where
-        F: 'static + FnMut() + Send,
+        F: 'static + FnMut() + Send + Sync,
     {
-        GTIMER
-            .lock()
-            .unwrap()
-            .schedule_with_delay(ChroneDuration::milliseconds(1), || {
-                Self::console_put_str("hello");
-            });
+        thread::spawn(move || loop {
+            thread::sleep(_delay);
+            cb();
+        });
+    }
+
+    // thread
+    fn spawn<F>(f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        thread::spawn(f);
     }
 
     #[inline]

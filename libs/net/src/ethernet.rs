@@ -6,20 +6,111 @@ use alloc::vec;
 use alloc::vec::Vec;
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
+use smoltcp::wire::{IpAddress, IpCidr};
 use smoltcp::Result;
 
 use spin::Mutex;
 
+use stdio::log;
 use stdio::println;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
 pub type Interface<T> = smoltcp::iface::Interface<'static, T>;
 pub type InterfaceInner = smoltcp::iface::Context<'static>;
-pub use smoltcp::time::Instant as Instant;
-pub use smoltcp::time::Duration as Duration;
-pub use smoltcp::iface::SocketHandle as SocketHandle;
-pub use smoltcp::socket::TcpState as TcpState;
+pub use smoltcp::iface::SocketHandle;
+pub use smoltcp::socket::TcpState;
+pub use smoltcp::time::Duration;
+pub use smoltcp::time::Instant;
+
+use crate::PHYNET;
+// use self::EthernetDevice as NetDevice;
+// use smoltcp::phy::Loopback as NetDevice;
+use self::Loopback as NetDevice;
+
+const MTU: usize = 1494;
+const PORTS_NUM: usize = 65536;
+
+/// A loopback device.
+#[derive(Debug)]
+pub struct EthernetDevice {
+    rx_buffer: [u8; MTU],
+    tx_buffer: [u8; MTU],
+    medium: Medium,
+}
+
+#[allow(clippy::new_without_default)]
+impl EthernetDevice {
+    /// Every packet transmitted through this device will be received through it
+    /// in FIFO order.
+    pub fn new(medium: Medium) -> EthernetDevice {
+        EthernetDevice {
+            rx_buffer: [0; MTU],
+            tx_buffer: [0; MTU],
+            medium,
+        }
+    }
+}
+
+impl<'a> Device<'a> for EthernetDevice {
+    type RxToken = RxToken<'a>;
+    type TxToken = TxToken<'a>;
+
+    fn capabilities(&self) -> DeviceCapabilities {
+        let mut caps = DeviceCapabilities::default();
+        caps.max_transmission_unit = MTU;
+        caps.max_burst_size = Some(1);
+        caps.medium = self.medium;
+        caps
+    }
+
+    fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
+        Some((
+            RxToken(&mut self.rx_buffer[..]),
+            TxToken(&mut self.tx_buffer[..]),
+        ))
+    }
+
+    fn transmit(&'a mut self) -> Option<Self::TxToken> {
+        Some(TxToken(&mut self.tx_buffer[..]))
+    }
+}
+
+#[doc(hidden)]
+pub struct RxToken<'a>(&'a mut [u8]);
+
+impl<'a> phy::RxToken for RxToken<'a> {
+    fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut [u8]) -> Result<R>,
+    {
+        //receive
+        // PHYNET.get().map(|net| net.receive(&mut self.0));
+        f(&mut self.0)
+    }
+}
+
+#[doc(hidden)]
+pub struct TxToken<'a>(&'a mut [u8]);
+
+impl<'a> phy::TxToken for TxToken<'a> {
+    fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut [u8]) -> Result<R>,
+    {
+        let result = f(&mut self.0[..len]);
+        // send
+        // PHYNET.get().map(|net| net.transmit(&mut self.0));
+        log::warn!(
+            "ip {0} {1} {2} {3}",
+            self.0[26],
+            self.0[27],
+            self.0[28],
+            self.0[29],
+        );
+        result
+    }
+}
 
 /// A loopback device.
 #[derive(Debug)]
@@ -43,8 +134,8 @@ impl Loopback {
 }
 
 impl<'a> Device<'a> for Loopback {
-    type RxToken = RxToken;
-    type TxToken = TxToken<'a>;
+    type RxToken = LpbkRxToken;
+    type TxToken = LpbkTxToken<'a>;
 
     fn capabilities(&self) -> DeviceCapabilities {
         let mut caps = DeviceCapabilities::default();
@@ -56,8 +147,8 @@ impl<'a> Device<'a> for Loopback {
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
         self.queue.pop_front().map(move |buffer| {
-            let rx = RxToken { buffer };
-            let tx = TxToken {
+            let rx = LpbkRxToken { buffer };
+            let tx = LpbkTxToken {
                 queue: &mut self.queue,
             };
             (rx, tx)
@@ -65,32 +156,47 @@ impl<'a> Device<'a> for Loopback {
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(TxToken {
+        Some(LpbkTxToken {
             queue: &mut self.queue,
         })
     }
 }
 
 #[doc(hidden)]
-pub struct RxToken {
+pub struct LpbkRxToken {
     buffer: Vec<u8>,
 }
 
-impl phy::RxToken for RxToken {
+impl phy::RxToken for LpbkRxToken {
     fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> Result<R>
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
+        log::warn!(
+            "rx ip_src {0} {1} {2} {3}",
+            self.buffer[28],
+            self.buffer[29],
+            self.buffer[30],
+            self.buffer[31],
+        );
+        log::warn!(
+            "rx ip_dst {0} {1} {2} {3}",
+            self.buffer[32],
+            self.buffer[33],
+            self.buffer[34],
+            self.buffer[35],
+        );
+
         f(&mut self.buffer)
     }
 }
 
 #[doc(hidden)]
-pub struct TxToken<'a> {
+pub struct LpbkTxToken<'a> {
     queue: &'a mut VecDeque<Vec<u8>>,
 }
 
-impl<'a> phy::TxToken for TxToken<'a> {
+impl<'a> phy::TxToken for LpbkTxToken<'a> {
     fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> Result<R>
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
@@ -98,17 +204,30 @@ impl<'a> phy::TxToken for TxToken<'a> {
         let mut buffer = Vec::new();
         buffer.resize(len, 0);
         let result = f(&mut buffer);
+        log::warn!(
+            "tx ip_src {0} {1} {2} {3}",
+            buffer[28],
+            buffer[29],
+            buffer[30],
+            buffer[31],
+        );
+        log::warn!(
+            "tx ip_dst {0} {1} {2} {3}",
+            buffer[32],
+            buffer[33],
+            buffer[34],
+            buffer[35],
+        );
         self.queue.push_back(buffer);
         result
     }
 }
 
-/// Creates and returns a new interface using `Loopback` struct.
-pub fn create_interface() -> Interface<smoltcp::phy::Loopback> {
-    let device = smoltcp::phy::Loopback::new(Medium::Ethernet);
+pub fn create_interface() -> Interface<NetDevice> {
+    let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::default();
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    let ip_addrs = [];
+    let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
         .neighbor_cache(neighbor_cache)
@@ -116,13 +235,11 @@ pub fn create_interface() -> Interface<smoltcp::phy::Loopback> {
         .finalize()
 }
 
-const PORTS_NUM: usize = 65536;
-
 pub struct EthernetDriver {
     /// Bitmap to track the port usage
     port_map: Bitmap,
     /// Internal ethernet interface
-    ethernet: Interface<smoltcp::phy::Loopback>,
+    ethernet: Interface<NetDevice>,
 }
 
 impl EthernetDriver {
@@ -185,8 +302,11 @@ impl EthernetDriver {
         self.ethernet.get_socket::<TcpSocket>(handle)
     }
 
-    pub fn get_context(&mut self, handle: SocketHandle) -> &mut InterfaceInner {
-        self.ethernet.get_socket_and_context::<TcpSocket>(handle).1
+    pub fn get_socket_and_context(
+        &mut self,
+        handle: SocketHandle,
+    ) -> (&mut TcpSocket, &mut InterfaceInner) {
+        self.ethernet.get_socket_and_context::<TcpSocket>(handle)
     }
 
     /// This function creates a new TCP socket, adds it to the internal socket
@@ -279,6 +399,17 @@ impl GlobalEthernetDriver {
             .get_socket(handle);
 
         f(&mut socket)
+    }
+
+    /// Enters a critical region and execute the provided closure with a mutable
+    /// reference to the socket.
+    pub fn with_socket_and_context<F, R>(&self, handle: SocketHandle, f: F) -> R
+    where
+        F: FnOnce(&mut TcpSocket, &mut InterfaceInner) -> R,
+    {
+        let mut guard = self.0.lock();
+        let (socket, cx) = guard.as_mut().unwrap().get_socket_and_context(handle);
+        f(socket, cx)
     }
 
     /// Enters a critical region and execute the provided closure with a mutable

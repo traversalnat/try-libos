@@ -17,9 +17,16 @@ pub trait Platform {
     fn net_transmit(_buf: &mut [u8]) {}
 
     // timer:
-    fn schedule_with_delay<F>(_delay: core::time::Duration, _cb: F)
+    fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
     where
-        F: 'static + FnMut() + Send,
+        F: 'static + FnMut() + Send + Sync,
+    {
+    }
+
+    // thread
+    fn spawn<F>(_f: F)
+    where
+        F: FnOnce() + Send + 'static,
     {
     }
 
