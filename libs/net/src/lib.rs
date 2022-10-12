@@ -14,6 +14,7 @@ pub use ethernet::TcpState;
 use ethernet::GlobalEthernetDriver;
 
 use spin::Once;
+use stdio::println;
 
 /// 这个接口定义了网络物理层receive, transmit
 pub trait PhyNet: Sync {

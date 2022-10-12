@@ -1,3 +1,5 @@
+use core::mem::size_of;
+
 use mem::alloc;
 
 use alloc::collections::BTreeMap;
@@ -30,6 +32,45 @@ use self::Loopback as NetDevice;
 
 const MTU: usize = 1494;
 const PORTS_NUM: usize = 65536;
+const ETHADDR_LEN: usize = 6;
+/// packet header
+#[repr(C)]
+struct packet_header {
+    /// eth header
+    dhost: [u8; ETHADDR_LEN],
+    shost: [u8; ETHADDR_LEN],
+    eth_type: u16,
+    /// ip header
+    ip_vhl: u8,
+    ip_tos: u8,
+    ip_len: u16,
+    ip_id: u16,
+    ip_off: u16,
+    ip_ttl: u8,
+    ip_p: u8,
+    ip_sum: u16,
+    ip_src: [u8; 4],
+    ip_dst: [u8; 4],
+    /// udp/tcp header(port only)
+    sport: u16,
+    dport: u16,
+}
+
+impl packet_header {
+    fn htol(src: u16) -> u16 {
+        let mut dst: u16 = 0;
+        dst |= src >> 8 | src << 8;
+        dst
+    }
+
+    fn get_sport(&self) -> u16 {
+        Self::htol(self.sport)
+    }
+
+    fn get_dport(&self) -> u16 {
+        Self::htol(self.dport)
+    }
+}
 
 /// A loopback device.
 #[derive(Debug)]
@@ -101,13 +142,6 @@ impl<'a> phy::TxToken for TxToken<'a> {
         let result = f(&mut self.0[..len]);
         // send
         // PHYNET.get().map(|net| net.transmit(&mut self.0));
-        log::warn!(
-            "ip {0} {1} {2} {3}",
-            self.0[26],
-            self.0[27],
-            self.0[28],
-            self.0[29],
-        );
         result
     }
 }
@@ -172,20 +206,11 @@ impl phy::RxToken for LpbkRxToken {
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
-        log::warn!(
-            "rx ip_src {0} {1} {2} {3}",
-            self.buffer[28],
-            self.buffer[29],
-            self.buffer[30],
-            self.buffer[31],
-        );
-        log::warn!(
-            "rx ip_dst {0} {1} {2} {3}",
-            self.buffer[32],
-            self.buffer[33],
-            self.buffer[34],
-            self.buffer[35],
-        );
+        // let packet_header: packet_header = unsafe { core::ptr::read(self.buffer.as_ptr() as *const _) };
+        // println!(
+        //     "rxtoken src {:?} {} \nrxtoken dst {:?} {}",
+        //     packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
+        // );
 
         f(&mut self.buffer)
     }
@@ -204,20 +229,12 @@ impl<'a> phy::TxToken for LpbkTxToken<'a> {
         let mut buffer = Vec::new();
         buffer.resize(len, 0);
         let result = f(&mut buffer);
-        log::warn!(
-            "tx ip_src {0} {1} {2} {3}",
-            buffer[28],
-            buffer[29],
-            buffer[30],
-            buffer[31],
-        );
-        log::warn!(
-            "tx ip_dst {0} {1} {2} {3}",
-            buffer[32],
-            buffer[33],
-            buffer[34],
-            buffer[35],
-        );
+        // let packet_header: packet_header = unsafe { core::ptr::read(buffer.as_ptr() as *const _) };
+        // println!(
+        //     "txtoken src {:?} {} \ntxtoken dst {:?} {}",
+        //     packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
+        // );
+
         self.queue.push_back(buffer);
         result
     }
