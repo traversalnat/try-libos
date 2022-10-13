@@ -1,6 +1,7 @@
 #![feature(linkage)]
 
 mod basic;
+mod eth;
 
 pub use platform::Platform;
 pub use basic::MacOS as PlatformImpl;

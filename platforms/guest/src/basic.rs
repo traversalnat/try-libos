@@ -6,11 +6,16 @@ use std::{
     thread,
 };
 
-use rawsock::open_best_library;
-
 use core::time::Duration;
+use crate::eth::EthDevice;
+use spin::Mutex;
+use lazy_static::*;
 
-pub const ITERF_NAME: &str = "en0";
+lazy_static!{
+    static ref ETH_DEVICE: Mutex<EthDevice> =  {
+        Mutex::new(EthDevice::new())
+    };
+}
 
 impl platform::Platform for MacOS {
     #[inline]
@@ -34,29 +39,17 @@ impl platform::Platform for MacOS {
     /// 构建一个 NAT 设备
     #[inline]
     fn net_receive(buf: &mut [u8]) -> usize {
-        if let Ok(lib) = open_best_library() {
-            if let Ok(mut iterf) = lib.open_interface(&ITERF_NAME) {
-                if let Ok(packet) = iterf.receive() {
-                    buf.fill(0);
-                    for i in 0..packet.len() {
-                        buf[0] = packet[i];
-                    }
-                    return packet.len();
-                }
-            }
-        }
-        0
+        let mut eth = ETH_DEVICE.lock();
+        eth.recv(buf)
     }
 
     #[inline]
-    fn net_transmit(_buf: &mut [u8]) {
-        if let Ok(lib) = open_best_library() {
-            if let Ok(iterf) = lib.open_interface(&ITERF_NAME) {
-                iterf.send(_buf).unwrap_or(());
-            }
-        }
+    fn net_transmit(buf: &mut [u8]) {
+        let mut eth = ETH_DEVICE.lock();
+        eth.send(buf);
     }
 
+    #[inline]
     fn schedule_with_delay<F>(_delay: Duration, mut cb: F)
     where
         F: 'static + FnMut() + Send + Sync,
@@ -68,6 +61,7 @@ impl platform::Platform for MacOS {
     }
 
     // thread
+    #[inline]
     fn spawn<F>(f: F)
     where
         F: FnOnce() + Send + 'static,

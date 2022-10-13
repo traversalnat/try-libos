@@ -1,11 +1,7 @@
-use core::mem::size_of;
-
 use mem::alloc;
 
 use alloc::collections::BTreeMap;
-use alloc::collections::VecDeque;
 use alloc::vec;
-use alloc::vec::Vec;
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::{IpAddress, IpCidr};
@@ -13,7 +9,6 @@ use smoltcp::Result;
 
 use spin::Mutex;
 
-use stdio::log;
 use stdio::println;
 use var_bitmap::Bitmap;
 
@@ -27,8 +22,7 @@ pub use smoltcp::time::Instant;
 
 use crate::PHYNET;
 // use self::EthernetDevice as NetDevice;
-// use smoltcp::phy::Loopback as NetDevice;
-use self::Loopback as NetDevice;
+use smoltcp::phy::Loopback as NetDevice;
 
 const MTU: usize = 1494;
 const PORTS_NUM: usize = 65536;
@@ -126,7 +120,7 @@ impl<'a> phy::RxToken for RxToken<'a> {
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
         //receive
-        // PHYNET.get().map(|net| net.receive(&mut self.0));
+        PHYNET.get().map(|net| net.receive(&mut self.0));
         f(&mut self.0)
     }
 }
@@ -140,102 +134,13 @@ impl<'a> phy::TxToken for TxToken<'a> {
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
         let result = f(&mut self.0[..len]);
+        let packet_header: packet_header = unsafe { core::ptr::read(self.0.as_ptr() as *const _) };
+        println!(
+            "txtoken src {:?} {} \ntxtoken dst {:?} {}",
+            packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
+        );
         // send
-        // PHYNET.get().map(|net| net.transmit(&mut self.0));
-        result
-    }
-}
-
-/// A loopback device.
-#[derive(Debug)]
-pub struct Loopback {
-    queue: VecDeque<Vec<u8>>,
-    medium: Medium,
-}
-
-#[allow(clippy::new_without_default)]
-impl Loopback {
-    /// Creates a loopback device.
-    ///
-    /// Every packet transmitted through this device will be received through it
-    /// in FIFO order.
-    pub fn new(medium: Medium) -> Loopback {
-        Loopback {
-            queue: VecDeque::new(),
-            medium,
-        }
-    }
-}
-
-impl<'a> Device<'a> for Loopback {
-    type RxToken = LpbkRxToken;
-    type TxToken = LpbkTxToken<'a>;
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        let mut caps = DeviceCapabilities::default();
-        caps.max_transmission_unit = 65535;
-        caps.max_burst_size = Some(1);
-        caps.medium = self.medium;
-        caps
-    }
-
-    fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        self.queue.pop_front().map(move |buffer| {
-            let rx = LpbkRxToken { buffer };
-            let tx = LpbkTxToken {
-                queue: &mut self.queue,
-            };
-            (rx, tx)
-        })
-    }
-
-    fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(LpbkTxToken {
-            queue: &mut self.queue,
-        })
-    }
-}
-
-#[doc(hidden)]
-pub struct LpbkRxToken {
-    buffer: Vec<u8>,
-}
-
-impl phy::RxToken for LpbkRxToken {
-    fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut [u8]) -> Result<R>,
-    {
-        // let packet_header: packet_header = unsafe { core::ptr::read(self.buffer.as_ptr() as *const _) };
-        // println!(
-        //     "rxtoken src {:?} {} \nrxtoken dst {:?} {}",
-        //     packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
-        // );
-
-        f(&mut self.buffer)
-    }
-}
-
-#[doc(hidden)]
-pub struct LpbkTxToken<'a> {
-    queue: &'a mut VecDeque<Vec<u8>>,
-}
-
-impl<'a> phy::TxToken for LpbkTxToken<'a> {
-    fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut [u8]) -> Result<R>,
-    {
-        let mut buffer = Vec::new();
-        buffer.resize(len, 0);
-        let result = f(&mut buffer);
-        // let packet_header: packet_header = unsafe { core::ptr::read(buffer.as_ptr() as *const _) };
-        // println!(
-        //     "txtoken src {:?} {} \ntxtoken dst {:?} {}",
-        //     packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
-        // );
-
-        self.queue.push_back(buffer);
+        PHYNET.get().map(|net| net.transmit(&mut self.0));
         result
     }
 }
