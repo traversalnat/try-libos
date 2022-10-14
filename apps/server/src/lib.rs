@@ -22,6 +22,7 @@ fn get_line() -> String {
 pub fn app_main() {
     let sender = sys_sock_create();
     let receiver = sys_sock_create();
+    // let remote_endpoint = IpEndpoint::new(IpAddress::v4(10, 42, 0, 1), 6000);
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(127, 0, 0, 1), 6000);
     sys_sock_listen(sender, 6000).unwrap();
     if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {};

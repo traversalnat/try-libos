@@ -1,7 +1,9 @@
 use mem::alloc;
 
 use alloc::collections::BTreeMap;
+use alloc::collections::VecDeque;
 use alloc::vec;
+use alloc::vec::Vec;
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::{IpAddress, IpCidr};
@@ -21,8 +23,10 @@ pub use smoltcp::time::Duration;
 pub use smoltcp::time::Instant;
 
 use crate::PHYNET;
-// use self::EthernetDevice as NetDevice;
-use smoltcp::phy::Loopback as NetDevice;
+// use smoltcp::phy::Loopback as NetDevice;
+// use smoltcp::phy::RawSocket as NetDevice;
+use self::EthernetDevice as NetDevice;
+// use self::Loopback as NetDevice;
 
 const MTU: usize = 1494;
 const PORTS_NUM: usize = 65536;
@@ -30,11 +34,11 @@ const ETHADDR_LEN: usize = 6;
 /// packet header
 #[repr(C)]
 struct packet_header {
-    /// eth header
+    /// eth header 14
     dhost: [u8; ETHADDR_LEN],
     shost: [u8; ETHADDR_LEN],
     eth_type: u16,
-    /// ip header
+    /// ip header 20
     ip_vhl: u8,
     ip_tos: u8,
     ip_len: u16,
@@ -66,7 +70,6 @@ impl packet_header {
     }
 }
 
-/// A loopback device.
 #[derive(Debug)]
 pub struct EthernetDevice {
     rx_buffer: [u8; MTU],
@@ -100,10 +103,29 @@ impl<'a> Device<'a> for EthernetDevice {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        Some((
-            RxToken(&mut self.rx_buffer[..]),
-            TxToken(&mut self.tx_buffer[..]),
-        ))
+        match PHYNET.get().map(|net| net.receive(&mut self.rx_buffer)) {
+            Some(size) => {
+                if size != 0 {
+                    // let packet_header: packet_header =
+                    //     unsafe { core::ptr::read(self.rx_buffer.as_ptr() as *const _) };
+                    // println!(
+                    //     "rxtoken src {:?} {} \nrxtoken dst {:?} {}",
+                    //     packet_header.ip_src,
+                    //     packet_header.get_sport(),
+                    //     packet_header.ip_dst,
+                    //     packet_header.get_dport()
+                    // );
+
+                    Some((
+                        RxToken(&mut self.rx_buffer[..size]),
+                        TxToken(&mut self.tx_buffer[..]),
+                    ))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
@@ -119,8 +141,6 @@ impl<'a> phy::RxToken for RxToken<'a> {
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
-        //receive
-        PHYNET.get().map(|net| net.receive(&mut self.0));
         f(&mut self.0)
     }
 }
@@ -134,13 +154,17 @@ impl<'a> phy::TxToken for TxToken<'a> {
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
         let result = f(&mut self.0[..len]);
-        let packet_header: packet_header = unsafe { core::ptr::read(self.0.as_ptr() as *const _) };
-        println!(
-            "txtoken src {:?} {} \ntxtoken dst {:?} {}",
-            packet_header.ip_src, packet_header.get_sport(), packet_header.ip_dst, packet_header.get_dport()
-        );
-        // send
-        PHYNET.get().map(|net| net.transmit(&mut self.0));
+
+        // let packet_header: packet_header = unsafe { core::ptr::read(self.0.as_ptr() as *const _) };
+        // println!(
+        //     "txtoken src {:?} {} \ntxtoken dst {:?} {}",
+        //     packet_header.ip_src,
+        //     packet_header.get_sport(),
+        //     packet_header.ip_dst,
+        //     packet_header.get_dport()
+        // );
+
+        PHYNET.get().map(|net| net.transmit(&mut self.0[..len]));
         result
     }
 }
@@ -149,7 +173,12 @@ pub fn create_interface() -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::default();
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
+    // let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
+    let ip_addrs = [
+        IpCidr::new(IpAddress::v4(10, 42, 0, 1), 16),
+        IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8),
+        IpCidr::new(IpAddress::v4(192, 168, 0, 1), 24),
+    ];
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
         .neighbor_cache(neighbor_cache)

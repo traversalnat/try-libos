@@ -14,3 +14,11 @@ async-std = "1.12.0"
 rawsock = "0.3"
 pnet = {version  = "0.31.0", features = ["std"]}
 spin = "0.9.4"
+smoltcp = { version = "0.8.1", default-features = false, features = [
+    "phy-raw_socket",
+    "alloc",
+    "socket-tcp",
+    "medium-ethernet",
+    "proto-ipv4",
+    "log", "verbose"] }
+bimap = "0.6.2"
