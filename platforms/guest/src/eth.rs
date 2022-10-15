@@ -62,18 +62,24 @@ pub struct EthDevice {
 
 const TARGETMAC: [u8; 6] = [0xf4, 0x5c, 0x89, 0x89, 0xdf, 0x53];
 const MACADDR: [u8; 6] = [0x12, 0x12, 0x12, 0x12, 0x12, 0x12];
-// const IPADDR: [u8; 4] = [10, 42, 117, 181];
+const IPADDR: [u8; 4] = [10, 42, 117, 181];
 // const TARGETIP: [u8; 4] = [127, 0, 0, 1];
 const DMAC_BEGIN: usize = 0;
 const DMAC_END: usize = 5;
 const SMAC_BEGIN: usize = 6;
 const SMAC_END: usize = 11;
+const IP_BEGIN: usize = 14;
+const IP_END: usize = 33;
+const IPSUM_BEGIN: usize = 24;
+const IPSUM_END: usize = 25;
 const SIP_BEGIN: usize = 26;
 const SIP_END: usize = 29;
 const DIP_BEGIN: usize = 30;
 const DIP_END: usize = 33;
 const SPORT_BEGIN: usize = 34;
 const SPORT_END: usize = 35;
+const DPORT_BEGIN: usize = 37;
+const DPORT_END: usize = 38;
 
 impl EthDevice {
     pub fn new() -> Self {
@@ -141,10 +147,36 @@ impl EthDevice {
         [(port >> 8) as u8, port as u8]
     }
 
+    fn ip_cksum(addr: &[u8]) -> u16 {
+        let mut len = addr.len();
+        let mut i = 0;
+        let mut sum: u32 = 0;
+        while len > 1 {
+            let number = ((addr[i] as u16) << 8) | addr[i+1] as u16;
+            sum += number as u32;
+            i += 2;
+            len -= 2;
+        }
+
+        if len == 1 {
+            sum += addr[i] as u32;
+        }
+        
+        sum = (sum & 0xffff) + (sum >> 16);
+        sum += (sum >> 16);
+        !sum as u16
+    }
+
     pub fn send(&mut self, buf: &mut [u8]) {
-        // self.mac_ip = MacIP::new_from_buf(buf);
+        self.mac_ip = MacIP::new_from_buf(buf);
         // mac addr
-        // buf[SMAC_BEGIN..=SMAC_END].copy_from_slice(&TARGETMAC);
+        buf[SMAC_BEGIN..=SMAC_END].copy_from_slice(&TARGETMAC);
+        buf[SIP_BEGIN..=SIP_END].copy_from_slice(&IPADDR);
+        // checksum
+        buf[IPSUM_BEGIN..=IPSUM_END].fill(0);
+        let checksum = Self::ip_cksum(&buf[IP_BEGIN..=IP_END]);
+        buf[IPSUM_BEGIN..=IPSUM_END].copy_from_slice(&[(checksum >> 8)as u8, checksum as u8]);
+
         // port
         let mut vport = [0; 2];
         vport.copy_from_slice(&buf[SPORT_BEGIN..=SPORT_END]);
