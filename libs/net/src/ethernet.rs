@@ -1,19 +1,16 @@
 use mem::alloc;
 
 use alloc::collections::BTreeMap;
-use alloc::collections::VecDeque;
 use alloc::vec;
-use alloc::vec::Vec;
+use smoltcp::iface::{Route, Routes};
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
+use smoltcp::wire::Ipv4Address;
 use smoltcp::wire::{IpAddress, IpCidr};
 use smoltcp::Result;
-use smoltcp::iface::{Route, Routes};
-use smoltcp::wire::Ipv4Address;
 
 use spin::Mutex;
 
-use stdio::println;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -24,53 +21,13 @@ pub use smoltcp::socket::TcpState;
 pub use smoltcp::time::Duration;
 pub use smoltcp::time::Instant;
 
-use crate::PHYNET;
-// use smoltcp::phy::Loopback as NetDevice;
-// use smoltcp::phy::RawSocket as NetDevice;
 use self::EthernetDevice as NetDevice;
-// use self::Loopback as NetDevice;
+use crate::PHYNET;
 
-const MTU: usize = 65535;
+// TODO 由 obj 注入 mac 地址和 ip 地址
+const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+const MTU: usize = 1500;
 const PORTS_NUM: usize = 65536;
-const ETHADDR_LEN: usize = 6;
-/// packet header
-#[repr(C)]
-struct packet_header {
-    /// eth header 14
-    dhost: [u8; ETHADDR_LEN],
-    shost: [u8; ETHADDR_LEN],
-    eth_type: u16,
-    /// ip header 20
-    ip_vhl: u8,
-    ip_tos: u8,
-    ip_len: u16,
-    ip_id: u16,
-    ip_off: u16,
-    ip_ttl: u8,
-    ip_p: u8,
-    ip_sum: u16,
-    ip_src: [u8; 4],
-    ip_dst: [u8; 4],
-    /// udp/tcp header(port only)
-    sport: u16,
-    dport: u16,
-}
-
-impl packet_header {
-    fn htol(src: u16) -> u16 {
-        let mut dst: u16 = 0;
-        dst |= src >> 8 | src << 8;
-        dst
-    }
-
-    fn get_sport(&self) -> u16 {
-        Self::htol(self.sport)
-    }
-
-    fn get_dport(&self) -> u16 {
-        Self::htol(self.dport)
-    }
-}
 
 #[derive(Debug)]
 pub struct EthernetDevice {
@@ -108,16 +65,6 @@ impl<'a> Device<'a> for EthernetDevice {
         match PHYNET.get().map(|net| net.receive(&mut self.rx_buffer)) {
             Some(size) => {
                 if size != 0 {
-                    // let packet_header: packet_header =
-                    //     unsafe { core::ptr::read(self.rx_buffer.as_ptr() as *const _) };
-                    // println!(
-                    //     "rxtoken src {:?} {} \nrxtoken dst {:?} {}",
-                    //     packet_header.ip_src,
-                    //     packet_header.get_sport(),
-                    //     packet_header.ip_dst,
-                    //     packet_header.get_dport()
-                    // );
-
                     Some((
                         RxToken(&mut self.rx_buffer[..size]),
                         TxToken(&mut self.tx_buffer[..]),
@@ -151,21 +98,11 @@ impl<'a> phy::RxToken for RxToken<'a> {
 pub struct TxToken<'a>(&'a mut [u8]);
 
 impl<'a> phy::TxToken for TxToken<'a> {
-    fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> Result<R>
+    fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> Result<R>
     where
         F: FnOnce(&mut [u8]) -> Result<R>,
     {
         let result = f(&mut self.0[..len]);
-
-        // let packet_header: packet_header = unsafe { core::ptr::read(self.0.as_ptr() as *const _) };
-        // println!(
-        //     "txtoken src {:?} {} \ntxtoken dst {:?} {}",
-        //     packet_header.ip_src,
-        //     packet_header.get_sport(),
-        //     packet_header.ip_dst,
-        //     packet_header.get_dport()
-        // );
-
         PHYNET.get().map(|net| net.transmit(&mut self.0[..len]));
         result
     }
@@ -173,17 +110,12 @@ impl<'a> phy::TxToken for TxToken<'a> {
 
 pub fn create_interface() -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
-    let macaddr: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
-    let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(&macaddr);
+    let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(&MACADDR);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    // let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
-    let ip_addrs = [
-        // IpCidr::new(IpAddress::v4(10, 42, 117, 181), 16),
-        IpCidr::new(IpAddress::v4(192, 168, 1, 199), 24),
-        // IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8),
-    ];
-
-    let default_gateway = Ipv4Address::new(192, 168, 1, 1);
+    // TODO 从设备获取ip地址
+    let ip_addrs = [IpCidr::new(IpAddress::v4(10, 42, 117, 199), 16)];
+    // TODO 注入网关地址
+    let default_gateway = Ipv4Address::new(10, 42, 0, 1);
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
     let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
     routes.add_default_ipv4_route(default_gateway).unwrap();

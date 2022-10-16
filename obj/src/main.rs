@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{sync::atomic::{AtomicI64, Ordering::SeqCst}, time::Duration};
+use core::{time::Duration};
 
 use platform::{Platform, PlatformImpl};
 
@@ -18,12 +18,11 @@ fn obj_main() {
 
 fn init_ethernet() {
     net::init(&PhyNet);
-    PlatformImpl::schedule_with_delay(Duration::from_millis(1), move || {
-        static TIMESTAMP: AtomicI64 = AtomicI64::new(0);
-        let val = TIMESTAMP.fetch_add(0, SeqCst);
+    // 网络栈需要不断poll
+    // TODO 使用 poll_delay 来决定下一次 poll 的时间
+    PlatformImpl::schedule_with_delay(Duration::from_micros(1), move || {
+        let val = PlatformImpl::rdtime() as i64;
         net::ETHERNET.poll(net::Instant::from_millis(val));
-        let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
-        TIMESTAMP.fetch_add(delay.total_millis() as i64, SeqCst);
     });
 }
 

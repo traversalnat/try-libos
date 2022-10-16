@@ -8,6 +8,7 @@ use std::{
 
 use core::time::Duration;
 use crate::eth::EthDevice;
+use chrono::Local;
 use spin::Mutex;
 use lazy_static::*;
 
@@ -76,7 +77,8 @@ impl platform::Platform for MacOS {
 
     #[inline]
     fn rdtime() -> usize {
-        0
+        let dt = Local::now();
+        dt.timestamp_millis() as usize
     }
 
     #[inline]
