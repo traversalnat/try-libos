@@ -51,7 +51,6 @@ impl EthDevice {
         if buf[ETH_TYPE_BEGIN] == 8 && buf[ETH_TYPE_END] == 6 {
                 // arp packet
                 is_valid = true;
-            } 
         }
 
         is_valid
