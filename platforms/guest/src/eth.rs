@@ -12,52 +12,11 @@ use pnet::packet::ipv4::MutableIpv4Packet;
 use pnet::packet::udp::MutableUdpPacket;
 use pnet::packet::{MutablePacket, Packet};
 
-struct MacIP {
-    pub dmac: [u8; 6],
-    pub smac: [u8; 6],
-    pub sip: [u8; 4],
-    pub dip: [u8; 4],
-}
-
-impl MacIP {
-    pub fn new() -> Self {
-        let dmac: [u8; 6] = [0; 6];
-        let smac: [u8; 6] = [0; 6];
-        let sip: [u8; 4] = [0; 4];
-        let dip: [u8; 4] = [0; 4];
-
-        Self {
-            dmac,
-            smac,
-            sip,
-            dip,
-        }
-    }
-
-    pub fn new_from_buf(buf: &[u8]) -> Self {
-        let mut dmac: [u8; 6] = [0; 6];
-        let mut smac: [u8; 6] = [0; 6];
-        let mut sip: [u8; 4] = [0; 4];
-        let mut dip: [u8; 4] = [0; 4];
-        dmac.copy_from_slice(&buf[DMAC_BEGIN..=DMAC_END]);
-        smac.copy_from_slice(&buf[SMAC_BEGIN..=SMAC_END]);
-        sip.copy_from_slice(&buf[SIP_BEGIN..=SIP_END]);
-        dip.copy_from_slice(&buf[DIP_BEGIN..=DIP_END]);
-
-        Self {
-            dmac,
-            smac,
-            sip,
-            dip,
-        }
-    }
-}
-
 pub struct EthDevice {
     tx: Box<dyn DataLinkSender>,
     rx: Box<dyn DataLinkReceiver>,
     map: BiMap<[u8; 2], [u8; 2]>,
-    mac_ip: MacIP,
+    smac_list: Vec<[u8; 6]>,
 }
 
 const TARGETMAC: [u8; 6] = [0xf4, 0x5c, 0x89, 0x89, 0xdf, 0x53];
@@ -104,32 +63,65 @@ impl EthDevice {
             tx,
             rx,
             map: BiMap::new(),
-            mac_ip: MacIP::new(),
+            smac_list: Vec::new(),
         }
     }
 
-    pub fn recv(&mut self, buf: &mut [u8]) -> usize {
-        match self.rx.next() {
-            Ok(packet) => {
-                let min_len = core::cmp::min(buf.len(), packet.len());
-                buf[..min_len].copy_from_slice(&packet[..min_len]);
-                // port
-                let mut port = [0; 2];
-                port.copy_from_slice(&buf[SPORT_BEGIN..=SPORT_END]);
-                match self.map.get_by_right(&port) {
-                    Some(vport) => {
-                        buf[SPORT_BEGIN..=SPORT_END].copy_from_slice(vport);
+    fn is_valid_packet(&self, buf: &mut [u8]) -> bool {
+        let macaddr: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+        let mut is_valid = false;
+        // check mac
+        let mut smac = [0; 6];
+        let mut dmac = [0; 6];
+        smac.copy_from_slice(&buf[SMAC_BEGIN..=SMAC_END]);
+        dmac.copy_from_slice(&buf[DMAC_BEGIN..=DMAC_END]);
+        if smac == macaddr || dmac == macaddr {
+            is_valid = true;
+        }
+
+        if buf[SMAC_END + 1] == 8 {
+            if buf[SMAC_END + 2] == 6 {
+                // arp packet
+                is_valid = true;
+            } else if buf[SMAC_END + 2] == 0 {
+                // ip packet
+                if is_valid {
+                    let mut port = [0; 2];
+                    let mut EXTRA = 0;
+                    if buf[0x0F] > 20 {
+                        EXTRA = (buf[0x0F] - 20) as usize;
                     }
-                    None => {
-                        return 0;
+                    port.copy_from_slice(&buf[EXTRA + DPORT_BEGIN..=EXTRA + DPORT_END]);
+                    match self.map.get_by_right(&port) {
+                        Some(vport) => {
+                            buf[DPORT_BEGIN..=DPORT_END].copy_from_slice(vport);
+                        }
+                        _ => {}
                     }
                 }
-                min_len
-            }
-            Err(e) => {
-                panic!("{e}");
             }
         }
+
+        is_valid
+    }
+
+    pub fn recv(&mut self, buf: &mut [u8]) -> usize {
+        for i in 0..=100 {
+            match self.rx.next() {
+                Ok(packet) => {
+                    let min_len = core::cmp::min(buf.len(), packet.len());
+                    buf[..min_len].copy_from_slice(&packet[..min_len]);
+                    // port
+                    if self.is_valid_packet(buf) {
+                        return min_len;
+                    }
+                }
+                _ => {
+                    return 0;
+                }
+            }
+        }
+        0
     }
 
     // 大端序 port
@@ -152,7 +144,7 @@ impl EthDevice {
         let mut i = 0;
         let mut sum: u32 = 0;
         while len > 1 {
-            let number = ((addr[i] as u16) << 8) | addr[i+1] as u16;
+            let number = ((addr[i] as u16) << 8) | addr[i + 1] as u16;
             sum += number as u32;
             i += 2;
             len -= 2;
@@ -161,31 +153,29 @@ impl EthDevice {
         if len == 1 {
             sum += addr[i] as u32;
         }
-        
+
         sum = (sum & 0xffff) + (sum >> 16);
-        sum += (sum >> 16);
+        sum += sum >> 16;
         !sum as u16
     }
 
     pub fn send(&mut self, buf: &mut [u8]) {
-        self.mac_ip = MacIP::new_from_buf(buf);
-        // mac addr
-        buf[SMAC_BEGIN..=SMAC_END].copy_from_slice(&TARGETMAC);
-        buf[SIP_BEGIN..=SIP_END].copy_from_slice(&IPADDR);
-        // checksum
-        buf[IPSUM_BEGIN..=IPSUM_END].fill(0);
-        let checksum = Self::ip_cksum(&buf[IP_BEGIN..=IP_END]);
-        buf[IPSUM_BEGIN..=IPSUM_END].copy_from_slice(&[(checksum >> 8)as u8, checksum as u8]);
-
         // port
-        let mut vport = [0; 2];
-        vport.copy_from_slice(&buf[SPORT_BEGIN..=SPORT_END]);
-        match self.map.get_by_left(&vport) {
-            Some(port) => buf[SPORT_BEGIN..=SPORT_END].copy_from_slice(port),
-            None => {
-                let real_port = Self::get_available_port(&vport);
-                self.map.insert(vport, real_port);
-                buf[SPORT_BEGIN..=SPORT_END].copy_from_slice(&real_port);
+        if buf[SMAC_END + 1] == 8 && buf[SMAC_END + 2] == 0 {
+            let mut vport = [0; 2];
+            vport.copy_from_slice(&buf[SPORT_BEGIN..=SPORT_END]);
+            let mut EXTRA = 0;
+            if buf[0x0F] > 20 {
+                EXTRA = (buf[0x0F] - 20) as usize;
+            }
+            println!("send ip {:?}", &buf[SIP_BEGIN + EXTRA..=SIP_END + EXTRA]);
+            match self.map.get_by_left(&vport) {
+                Some(port) => buf[SPORT_BEGIN + EXTRA..=SPORT_END + EXTRA].copy_from_slice(port),
+                None => {
+                    let real_port = Self::get_available_port(&vport);
+                    self.map.insert(vport, real_port);
+                    buf[SPORT_BEGIN..=SPORT_END].copy_from_slice(&real_port);
+                }
             }
         }
         self.tx.send_to(buf, None);

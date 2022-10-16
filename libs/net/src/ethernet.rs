@@ -8,6 +8,8 @@ use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::{IpAddress, IpCidr};
 use smoltcp::Result;
+use smoltcp::iface::{Route, Routes};
+use smoltcp::wire::Ipv4Address;
 
 use spin::Mutex;
 
@@ -28,7 +30,7 @@ use crate::PHYNET;
 use self::EthernetDevice as NetDevice;
 // use self::Loopback as NetDevice;
 
-const MTU: usize = 1494;
+const MTU: usize = 65535;
 const PORTS_NUM: usize = 65536;
 const ETHADDR_LEN: usize = 6;
 /// packet header
@@ -171,16 +173,24 @@ impl<'a> phy::TxToken for TxToken<'a> {
 
 pub fn create_interface() -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
-    let hw_addr = smoltcp::wire::EthernetAddress::default();
+    let macaddr: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+    let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(&macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
     // let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
     let ip_addrs = [
-        IpCidr::new(IpAddress::v4(10, 42, 0, 1), 16),
-        IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8),
-        IpCidr::new(IpAddress::v4(192, 168, 0, 1), 24),
+        // IpCidr::new(IpAddress::v4(10, 42, 117, 181), 16),
+        IpCidr::new(IpAddress::v4(192, 168, 1, 199), 24),
+        // IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8),
     ];
+
+    let default_gateway = Ipv4Address::new(192, 168, 1, 1);
+    static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
+    let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
+    routes.add_default_ipv4_route(default_gateway).unwrap();
+
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
+        .routes(routes)
         .neighbor_cache(neighbor_cache)
         .ip_addrs(ip_addrs)
         .finalize()
