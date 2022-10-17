@@ -10,7 +10,7 @@ pub struct EthDevice {
     rx: Box<dyn DataLinkReceiver>,
 }
 
-const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 const DMAC_BEGIN: usize = 0;
 const DMAC_END: usize = 5;
 const ETH_TYPE_BEGIN: usize = 12;
@@ -18,6 +18,7 @@ const ETH_TYPE_END: usize = 13;
 
 impl EthDevice {
     pub fn new() -> Self {
+        // TODO 注入 网卡地址
         let interface_name = "en0";
         let interface_names_match = |iface: &NetworkInterface| iface.name == interface_name;
         let interfaces = datalink::interfaces();
@@ -35,10 +36,7 @@ impl EthDevice {
             ),
         };
 
-        Self {
-            tx,
-            rx,
-        }
+        Self { tx, rx }
     }
 
     fn is_valid_packet(&self, buf: &mut [u8]) -> bool {
@@ -49,8 +47,8 @@ impl EthDevice {
         }
 
         if buf[ETH_TYPE_BEGIN] == 8 && buf[ETH_TYPE_END] == 6 {
-                // arp packet
-                is_valid = true;
+            // arp packet
+            is_valid = true;
         }
 
         is_valid

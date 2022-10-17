@@ -3,7 +3,7 @@
 
 use core::{time::Duration};
 
-use platform::{Platform, PlatformImpl};
+use platform::{Platform, PlatformImpl, MACADDR};
 
 #[no_mangle]
 fn obj_main() {
@@ -17,12 +17,15 @@ fn obj_main() {
 }
 
 fn init_ethernet() {
-    net::init(&PhyNet);
+    net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
     // TODO 使用 poll_delay 来决定下一次 poll 的时间
     PlatformImpl::schedule_with_delay(Duration::from_micros(1), move || {
         let val = PlatformImpl::rdtime() as i64;
         net::ETHERNET.poll(net::Instant::from_millis(val));
+        let val = PlatformImpl::rdtime() as i64;
+        let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
+        PlatformImpl::wait(delay.into());
     });
 }
 

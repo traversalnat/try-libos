@@ -71,6 +71,11 @@ impl platform::Platform for MacOS {
     }
 
     #[inline]
+    fn wait(delay: core::time::Duration) {
+        thread::sleep(delay);
+    }
+
+    #[inline]
     fn frequency() -> usize {
         0
     }

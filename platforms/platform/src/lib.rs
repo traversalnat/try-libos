@@ -30,6 +30,7 @@ pub trait Platform {
     {
     }
 
+    fn wait(_delay: core::time::Duration) {}
     fn frequency() -> usize;
     fn rdtime() -> usize;
     fn shutdown(error: bool);

@@ -4,13 +4,16 @@ use alloc::collections::BTreeMap;
 use alloc::vec;
 use smoltcp::iface::{Route, Routes};
 use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
+use smoltcp::socket::Dhcpv4Event;
+use smoltcp::socket::Dhcpv4Socket;
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::Ipv4Address;
-use smoltcp::wire::{IpAddress, IpCidr};
+use smoltcp::wire::{IpCidr};
 use smoltcp::Result;
 
 use spin::Mutex;
 
+use stdio::*;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -24,8 +27,6 @@ pub use smoltcp::time::Instant;
 use self::EthernetDevice as NetDevice;
 use crate::PHYNET;
 
-// TODO 由 obj 注入 mac 地址和 ip 地址
-const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 const MTU: usize = 1500;
 const PORTS_NUM: usize = 65536;
 
@@ -108,17 +109,13 @@ impl<'a> phy::TxToken for TxToken<'a> {
     }
 }
 
-pub fn create_interface() -> Interface<NetDevice> {
+pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
-    let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(&MACADDR);
+    let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    // TODO 从设备获取ip地址
-    let ip_addrs = [IpCidr::new(IpAddress::v4(10, 42, 117, 199), 16)];
-    // TODO 注入网关地址
-    let default_gateway = Ipv4Address::new(10, 42, 0, 1);
+    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
-    let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
-    routes.add_default_ipv4_route(default_gateway).unwrap();
+    let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
@@ -133,14 +130,23 @@ pub struct EthernetDriver {
     port_map: Bitmap,
     /// Internal ethernet interface
     ethernet: Interface<NetDevice>,
+    /// Internal dhcp socket
+    dhcp: SocketHandle,
 }
 
 impl EthernetDriver {
     /// Creates a fresh ethernet driver.
-    fn new() -> EthernetDriver {
+    fn new(macaddr: &[u8; 6]) -> EthernetDriver {
+        let mut dhcp = Dhcpv4Socket::new();
+        dhcp.set_max_lease_duration(Some(Duration::from_secs(10)));
+        // const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+        let mut ethernet = create_interface(&macaddr);
+        let dhcp = ethernet.add_socket(dhcp);
+
         EthernetDriver {
             port_map: Bitmap::with_size(PORTS_NUM),
-            ethernet: create_interface(),
+            ethernet,
+            dhcp,
         }
     }
 
@@ -149,6 +155,33 @@ impl EthernetDriver {
     #[allow(unused)]
     fn poll(&mut self, timestamp: Instant) {
         self.ethernet.poll(timestamp);
+        // poll dhcp to get ip addr and route gateway
+        let dhcp = self.ethernet.get_socket::<Dhcpv4Socket>(self.dhcp);
+        match dhcp.poll() {
+            // TODO 请求一次就足够
+            Some(Dhcpv4Event::Configured(config)) => {
+                self.ethernet.update_ip_addrs(|addrs| {
+                    addrs.iter_mut().next().map(|addr| {
+                        *addr = IpCidr::Ipv4(config.address);
+                    });
+                });
+                if let Some(router) = config.router {
+                    self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
+                } 
+                // else {
+                //     self.ethernet.routes_mut().remove_default_ipv4_route();
+                // }
+            },
+            // Some(Dhcpv4Event::Deconfigured) => {
+            //     self.ethernet.update_ip_addrs(|addrs| {
+            //         addrs.iter_mut().next().map(|addr| {
+            //             *addr = IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0);
+            //         });
+            //     });
+            //     self.ethernet.routes_mut().remove_default_ipv4_route();
+            // },
+            _ => {}
+        }
     }
 
     /// Returns an advisory wait time to call `poll()` the next time.
@@ -225,9 +258,9 @@ impl GlobalEthernetDriver {
         GlobalEthernetDriver(Mutex::new(None))
     }
 
-    pub fn initialize(&self) {
+    pub fn initialize(&self, macaddr: &[u8; 6]) {
         let mut lock = self.0.lock();
-        *lock = Some(EthernetDriver::new());
+        *lock = Some(EthernetDriver::new(macaddr));
     }
 
     pub fn poll(&self, timestamp: Instant) {
@@ -277,6 +310,21 @@ impl GlobalEthernetDriver {
             .as_mut()
             .expect("Uninitialized EthernetDriver")
             .add_socket()
+    }
+
+    pub fn close_socket(&self, handle: SocketHandle) {
+        let mut guard = self.0.lock();
+        let socket = guard
+            .as_mut()
+            .expect("Uninitialized EthernetDriver")
+            .get_socket(handle);
+        let port = socket.local_endpoint().port;
+        // TODO 完全关闭 socket, 目前 close 和 abort 两个方法都无法使服务器一端断开
+        socket.abort();
+        self.release_port(port);
+        self.critical(|eth| {
+            eth.release(handle);
+        });
     }
 
     /// Enters a critical region and execute the provided closure with a mutable

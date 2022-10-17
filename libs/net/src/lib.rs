@@ -12,7 +12,6 @@ use spin::Once;
 
 /// 这个接口定义了网络物理层receive, transmit
 pub trait PhyNet: Sync {
-    // 将数据全部发送出去
     fn receive(&self, buf: &mut [u8]) -> usize;
     fn transmit(&self, buf: &mut [u8]);
 }
@@ -23,9 +22,9 @@ static PHYNET: Once<&'static dyn PhyNet> = Once::new();
 pub static ETHERNET: GlobalEthernetDriver = GlobalEthernetDriver::uninitialized();
 
 /// 主要是给 obj 确认使用哪个 platform 提供的函数来注入 PhyNet
-pub fn init(net: &'static dyn PhyNet) {
+pub fn init(net: &'static dyn PhyNet, macaddr: &[u8; 6]) {
     PHYNET.call_once(|| net);
-    ETHERNET.initialize();
+    ETHERNET.initialize(macaddr);
 }
 
 pub struct SocketState {
@@ -94,4 +93,9 @@ pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
             None
         }
     })
+}
+
+/// Close a connected socket.
+pub fn sys_sock_close(sock: SocketHandle) {
+    ETHERNET.close_socket(sock);
 }

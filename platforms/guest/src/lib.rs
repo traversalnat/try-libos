@@ -5,6 +5,7 @@ mod eth;
 
 pub use platform::Platform;
 pub use basic::MacOS as PlatformImpl;
+pub use eth::MACADDR;
 
 use std::process::exit;
 

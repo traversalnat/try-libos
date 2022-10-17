@@ -9,6 +9,7 @@ edition = "2021"
 smoltcp = { version = "0.8.1", default-features = false, features = [
     "alloc",
     "socket-tcp",
+    "socket-dhcpv4",
     "medium-ethernet",
     "proto-ipv4",
     "log", "verbose"] }
