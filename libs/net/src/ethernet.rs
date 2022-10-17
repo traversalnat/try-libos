@@ -8,7 +8,7 @@ use smoltcp::socket::Dhcpv4Event;
 use smoltcp::socket::Dhcpv4Socket;
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::Ipv4Address;
-use smoltcp::wire::{IpCidr};
+use smoltcp::wire::{IpCidr, IpAddress};
 use smoltcp::Result;
 
 use spin::Mutex;
@@ -113,9 +113,11 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+    // let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+    let ip_addrs = [IpCidr::new(Ipv4Address::new(192, 168, 31, 199).into(), 24)];
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
-    let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
+    let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
+    routes.add_default_ipv4_route(Ipv4Address::new(192, 168, 31, 1));
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
@@ -139,7 +141,6 @@ impl EthernetDriver {
     fn new(macaddr: &[u8; 6]) -> EthernetDriver {
         let mut dhcp = Dhcpv4Socket::new();
         dhcp.set_max_lease_duration(Some(Duration::from_secs(10)));
-        // const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
         let mut ethernet = create_interface(&macaddr);
         let dhcp = ethernet.add_socket(dhcp);
 
@@ -168,18 +169,7 @@ impl EthernetDriver {
                 if let Some(router) = config.router {
                     self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
                 } 
-                // else {
-                //     self.ethernet.routes_mut().remove_default_ipv4_route();
-                // }
             },
-            // Some(Dhcpv4Event::Deconfigured) => {
-            //     self.ethernet.update_ip_addrs(|addrs| {
-            //         addrs.iter_mut().next().map(|addr| {
-            //             *addr = IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0);
-            //         });
-            //     });
-            //     self.ethernet.routes_mut().remove_default_ipv4_route();
-            // },
             _ => {}
         }
     }

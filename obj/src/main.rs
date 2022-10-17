@@ -23,7 +23,6 @@ fn init_ethernet() {
     PlatformImpl::schedule_with_delay(Duration::from_micros(1), move || {
         let val = PlatformImpl::rdtime() as i64;
         net::ETHERNET.poll(net::Instant::from_millis(val));
-        let val = PlatformImpl::rdtime() as i64;
         let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
         PlatformImpl::wait(delay.into());
     });
