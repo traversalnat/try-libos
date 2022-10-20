@@ -2,6 +2,8 @@
 #![feature(naked_functions, asm_sym, asm_const)]
 #![feature(linkage)]
 
+mod thread;
+
 pub use platform::Platform;
 pub use Virt as PlatformImpl;
 use qemu_virt_ld as linker;

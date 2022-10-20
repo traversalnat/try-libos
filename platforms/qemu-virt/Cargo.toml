@@ -13,3 +13,6 @@ riscv = "0.8.0"
 
 platform = { path = "../platform" }
 qemu-virt-ld = { path = "../qemu-virt-ld"}
+
+kernel-context = {path = "./kernel-context", features = []}
+mem = {path = "../../common/mem"}

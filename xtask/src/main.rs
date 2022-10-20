@@ -67,7 +67,7 @@ app = {{ path = \"../apps/{0}\", package = \"{0}\" }}
 platform = {{ path = \"../platforms/{1}\", package = \"{1}\" }}
 stdio = {{ path = \"../libs/stdio\" }}
 net = {{ path = \"../libs/net\" }}
-mem = {{ path = \"../libs/mem\", features = [{2}] }}
+mem = {{ path = \"../common/mem\", features = [{2}] }}
 
 [build-dependencies]
 linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
