@@ -4,11 +4,14 @@
 
 pub use platform::Platform;
 pub use Virt as PlatformImpl;
+use qemu_virt_ld as linker;
 
 use sbi_rt::*;
 use spin::{Mutex, Once};
 use uart_16550::MmioSerialPort;
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+// 物理内存容量
+const MEMORY: usize = 24 << 20;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -16,31 +19,13 @@ fn obj_main() {
     panic!()
 }
 
-const KERNEL_HEAP_SIZE: usize = 0x300_0000;
-/// heap space ([u8; KERNEL_HEAP_SIZE])
-static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
-
-
-#[link_section = ".text.entry"]
-#[no_mangle]
-#[naked]
-unsafe extern "C" fn _start() -> ! {
-    const STACK_SIZE: usize = 4096;
-
-    #[link_section = ".bss.uninit"]
-    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
-
-    core::arch::asm!(
-        "la sp, {stack} + {stack_size}",
-        "j  {main}",
-        stack_size = const STACK_SIZE,
-        stack      =   sym STACK,
-        main       =   sym rust_main,
-        options(noreturn),
-    )
-}
+linker::boot0!(rust_main; stack = 4096 * 3);
 
 extern "C" fn rust_main() -> ! {
+    let layout = linker::KernelLayout::locate();
+    unsafe {
+        layout.zero_bss();
+    }
     UART0.call_once(|| Mutex::new(unsafe { MmioSerialPort::new(0x1000_0000) }));
     obj_main();
     system_reset(RESET_TYPE_SHUTDOWN, RESET_REASON_NO_REASON);
@@ -71,9 +56,38 @@ impl platform::Platform for Virt {
     }
 
     #[inline]
+    fn net_receive(_buf: &mut [u8]) -> usize {
+        0
+    }
+
+    #[inline]
+    fn net_transmit(_buf: &mut [u8]) {
+    }
+
+    #[inline]
+    fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
+    where
+        F: 'static + FnMut() + Send + Sync,
+    {
+    }
+
+    // thread
+    #[inline]
+    fn spawn<F>(_f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+    }
+
+    #[inline]
+    fn wait(_delay: core::time::Duration) {
+    }
+
+    #[inline]
     fn heap() -> (usize, usize) {
+        let layout = linker::KernelLayout::locate();
         unsafe {
-            (HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE)
+            (layout.end(), MEMORY - layout.len())
         }
     }
 

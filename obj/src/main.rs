@@ -4,21 +4,22 @@
 use core::{time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
+use stdio::println;
 
 #[no_mangle]
 fn obj_main() {
     // 连接 platform 和 libs
-    let (heap_base, heap_size) = PlatformImpl::heap();
-    mem::init_heap(heap_base, heap_size);
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
+    let (heap_base, heap_size) = PlatformImpl::heap();
+    mem::init_heap(heap_base, heap_size);
     init_ethernet();
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
 }
 
 fn init_ethernet() {
-    net::init(&PhyNet, &MACADDR);
+    // net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
     // TODO 使用 poll_delay 来决定下一次 poll 的时间
     PlatformImpl::schedule_with_delay(Duration::from_micros(1), move || {

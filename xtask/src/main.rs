@@ -123,9 +123,10 @@ std = []
         let elf = target.join("release").join("obj");
         Qemu::system("riscv64")
             .args(["-machine", self.plat.strip_prefix("qemu-").unwrap()])
+            .arg("-nographic")
             .arg("-kernel")
             .arg(objcopy(elf, true))
-            .arg("-nographic")
+            .args(&["-m", "64M"])
             .invoke();
     }
 }

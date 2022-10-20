@@ -12,3 +12,4 @@ spin = "0.9.4"
 riscv = "0.8.0"
 
 platform = { path = "../platform" }
+qemu-virt-ld = { path = "../qemu-virt-ld"}
