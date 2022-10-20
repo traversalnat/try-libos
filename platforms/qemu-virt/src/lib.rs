@@ -8,12 +8,18 @@ pub use Virt as PlatformImpl;
 use sbi_rt::*;
 use spin::{Mutex, Once};
 use uart_16550::MmioSerialPort;
+pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 
 #[linkage = "weak"]
 #[no_mangle]
 fn obj_main() {
     panic!()
 }
+
+const KERNEL_HEAP_SIZE: usize = 0x300_0000;
+/// heap space ([u8; KERNEL_HEAP_SIZE])
+static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+
 
 #[link_section = ".text.entry"]
 #[no_mangle]
@@ -61,6 +67,13 @@ impl platform::Platform for Virt {
         let mut uart = UART0.wait().lock();
         for c in str.bytes() {
             uart.send(c);
+        }
+    }
+
+    #[inline]
+    fn heap() -> (usize, usize) {
+        unsafe {
+            (HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE)
         }
     }
 
