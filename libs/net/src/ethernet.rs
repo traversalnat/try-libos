@@ -8,12 +8,11 @@ use smoltcp::socket::Dhcpv4Event;
 use smoltcp::socket::Dhcpv4Socket;
 use smoltcp::socket::TcpSocketBuffer;
 use smoltcp::wire::Ipv4Address;
-use smoltcp::wire::{IpCidr, IpAddress};
+use smoltcp::wire::{IpCidr, Ipv4Cidr};
 use smoltcp::Result;
 
 use spin::Mutex;
 
-use stdio::*;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -113,11 +112,9 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    // let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
-    let ip_addrs = [IpCidr::new(Ipv4Address::new(192, 168, 31, 199).into(), 24)];
+    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
-    let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
-    routes.add_default_ipv4_route(Ipv4Address::new(192, 168, 31, 1));
+    let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
@@ -139,8 +136,7 @@ pub struct EthernetDriver {
 impl EthernetDriver {
     /// Creates a fresh ethernet driver.
     fn new(macaddr: &[u8; 6]) -> EthernetDriver {
-        let mut dhcp = Dhcpv4Socket::new();
-        dhcp.set_max_lease_duration(Some(Duration::from_secs(10)));
+        let dhcp = Dhcpv4Socket::new();
         let mut ethernet = create_interface(&macaddr);
         let dhcp = ethernet.add_socket(dhcp);
 
@@ -151,6 +147,14 @@ impl EthernetDriver {
         }
     }
 
+    fn set_ipv4_addr(&mut self, cidr: Ipv4Cidr) {
+        self.ethernet.update_ip_addrs(|addrs| {
+            addrs.iter_mut().next().map(|addr| {
+                *addr = IpCidr::Ipv4(cidr);
+            });
+        });
+    }
+
     /// Polls the ethernet interface.
     /// See also `smoltcp::iface::Interface::poll()`.
     #[allow(unused)]
@@ -159,16 +163,17 @@ impl EthernetDriver {
         // poll dhcp to get ip addr and route gateway
         let dhcp = self.ethernet.get_socket::<Dhcpv4Socket>(self.dhcp);
         match dhcp.poll() {
-            // TODO 请求一次就足够
             Some(Dhcpv4Event::Configured(config)) => {
-                self.ethernet.update_ip_addrs(|addrs| {
-                    addrs.iter_mut().next().map(|addr| {
-                        *addr = IpCidr::Ipv4(config.address);
-                    });
-                });
+                self.set_ipv4_addr(config.address);
                 if let Some(router) = config.router {
                     self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
-                } 
+                } else {
+                    self.ethernet.routes_mut().remove_default_ipv4_route();
+                }
+            },
+            Some(Dhcpv4Event::Deconfigured) => {
+                self.set_ipv4_addr(Ipv4Cidr::new(Ipv4Address::UNSPECIFIED, 0));
+                self.ethernet.routes_mut().remove_default_ipv4_route();
             },
             _ => {}
         }
