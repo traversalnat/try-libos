@@ -8,7 +8,8 @@ use platform::{Platform, PlatformImpl, MACADDR};
 #[no_mangle]
 fn obj_main() {
     // 连接 platform 和 libs
-    mem::init_heap();
+    let (heap_base, heap_size) = PlatformImpl::heap();
+    mem::init_heap(heap_base, heap_size);
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
     init_ethernet();

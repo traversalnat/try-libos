@@ -18,6 +18,10 @@ lazy_static!{
     };
 }
 
+const KERNEL_HEAP_SIZE: usize = 0x300_0000;
+/// heap space ([u8; KERNEL_HEAP_SIZE])
+static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+
 impl platform::Platform for MacOS {
     #[inline]
     fn console_getchar() -> u8 {
@@ -73,6 +77,13 @@ impl platform::Platform for MacOS {
     #[inline]
     fn wait(delay: core::time::Duration) {
         thread::sleep(delay);
+    }
+
+    #[inline]
+    fn heap() -> (usize, usize) {
+        unsafe {
+            (HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE)
+        }
     }
 
     #[inline]

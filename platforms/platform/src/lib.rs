@@ -31,6 +31,13 @@ pub trait Platform {
     }
 
     fn wait(_delay: core::time::Duration) {}
+
+    // mem: return the heap base and heap size
+    fn heap() -> (usize, usize) {
+        (0, 0)
+    }
+
+    // machine
     fn frequency() -> usize;
     fn rdtime() -> usize;
     fn shutdown(error: bool);
