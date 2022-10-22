@@ -712,8 +712,10 @@ name = "obj"
 version = "0.1.0"
 dependencies = [
  "helloworld",
- "qemu-sifive_u",
- "qemu-sifive_u-ld",
+ "mem",
+ "net",
+ "qemu-virt",
+ "qemu-virt-ld",
  "stdio",
 ]
 

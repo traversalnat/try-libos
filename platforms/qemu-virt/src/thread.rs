@@ -3,29 +3,42 @@
 extern crate alloc;
 
 use kernel_context::{LocalContext};
-use spin::{Mutex, Once};
-use alloc::vec::Vec;
-use alloc::vec;
+use alloc::{alloc::alloc, collections::LinkedList};
+use core::alloc::Layout;
+use spin::{Lazy, Mutex};
 
-static THREADS: Once<Mutex<Vec<LocalContext>>> = Once::new();
+const STACK_SIZE: usize = 0x8000;
 
-struct thread;
+// 由于只会被调度进程使用，不考虑并发安全
+pub static THREADS: Lazy<Mutex<LinkedList<TaskControlBlock>>> = Lazy::new(|| {
+    Mutex::new(LinkedList::new())
+});
 
-impl thread {
-    pub fn init() {
-        THREADS.call_once(|| Mutex::new(vec![]));
-        let mut scheduling = LocalContext::thread(Self::schedule as _, false);
-        unsafe {
-            scheduling.execute();
-        }
+/// 任务控制块。
+///
+/// 包含任务的上下文、状态和资源。
+pub struct TaskControlBlock {
+    ctx: LocalContext,
+    pub finish: bool,
+}
+
+impl TaskControlBlock {
+    pub const ZERO: Self = Self {
+        ctx: LocalContext::empty(),
+        finish: false,
+    };
+
+    /// 初始化一个任务。
+    pub fn init(&mut self, entry: usize) {
+        self.ctx = LocalContext::thread(entry, true);
+        let bottom =
+            unsafe { alloc(Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap()) } as usize;
+        *self.ctx.sp_mut() = bottom + STACK_SIZE;
     }
 
-    pub fn add_thread(f: fn()) {
-        let t = LocalContext::thread(f as _, false);
-        THREADS.wait().lock().push(t);
-    }
-
-    extern "C" fn schedule() -> ! {
-        unreachable!()
+    /// 执行此任务。
+    #[inline]
+    pub unsafe fn execute(&mut self) {
+        self.ctx.execute();
     }
 }

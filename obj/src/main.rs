@@ -1,18 +1,19 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 use core::{time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::println;
+use alloc::{vec, vec::Vec};
 
 #[no_mangle]
 fn obj_main() {
     // 连接 platform 和 libs
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
-    let (heap_base, heap_size) = PlatformImpl::heap();
-    mem::init_heap(heap_base, heap_size);
     init_ethernet();
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
