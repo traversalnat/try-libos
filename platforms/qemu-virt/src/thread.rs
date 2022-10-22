@@ -3,16 +3,41 @@
 extern crate alloc;
 
 use kernel_context::{LocalContext};
-use alloc::{alloc::alloc, collections::LinkedList};
+use alloc::{alloc::alloc, collections::LinkedList, sync::Arc};
 use core::alloc::Layout;
 use spin::{Lazy, Mutex};
 
 const STACK_SIZE: usize = 0x8000;
 
-// 由于只会被调度进程使用，不考虑并发安全
+// 处理器
+pub static PROCESSOR : Lazy<Mutex<Processor>> = Lazy::new(|| {
+    Mutex::new(Processor::new())
+});
+
+// 保存所有的线程
 pub static THREADS: Lazy<Mutex<LinkedList<TaskControlBlock>>> = Lazy::new(|| {
     Mutex::new(LinkedList::new())
 });
+
+pub struct Processor {
+    pub current: Option<Arc<TaskControlBlock>>,
+}
+
+impl Processor {
+    pub fn new() -> Self {
+        Self {
+            current: None,
+        }
+    }
+
+    pub fn take_current(&mut self) -> Option<Arc<TaskControlBlock>> {
+        self.current.take()
+    }
+
+    pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
+        self.current.as_ref().map(|task| Arc::clone(task))
+    }
+}
 
 /// 任务控制块。
 ///

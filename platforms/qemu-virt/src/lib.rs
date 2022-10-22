@@ -11,7 +11,7 @@ pub use platform::Platform;
 use qemu_virt_ld as linker;
 pub use Virt as PlatformImpl;
 
-use riscv::register::{mcause::Interrupt, *};
+use riscv::register::*;
 use thread::*;
 
 use alloc::{vec, collections::LinkedList};
