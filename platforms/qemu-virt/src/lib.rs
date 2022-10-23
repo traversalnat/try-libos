@@ -5,6 +5,8 @@
 
 mod thread;
 mod timer;
+mod e1000;
+mod pci;
 extern crate alloc;
 
 use kernel_context::LocalContext;
@@ -23,7 +25,7 @@ use thread::*;
 use timer::*;
 use uart_16550::MmioSerialPort;
 
-pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
+pub use e1000::MACADDR;
 // 物理内存容量
 const MEMORY: usize = 24 << 20;
 

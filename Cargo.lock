@@ -572,6 +572,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "isomorphic_drivers"
+version = "0.1.0"
+source = "git+https://github.com/rcore-os/isomorphic_drivers?rev=f7cd97a#f7cd97a867057142f06de7f254accf7960514a79"
+dependencies = [
+ "bit_field",
+ "bitflags",
+ "log",
+ "spin 0.9.4",
+ "volatile 0.3.0",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -711,11 +723,11 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "helloworld",
  "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
- "server",
  "stdio",
 ]
 
@@ -926,6 +938,7 @@ version = "0.1.0"
 name = "qemu-virt"
 version = "0.1.0"
 dependencies = [
+ "isomorphic_drivers",
  "kernel-context",
  "mem",
  "platform",
@@ -1242,6 +1255,12 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "volatile"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8e76fae08f03f96e166d2dfda232190638c10e0383841252416f9cfe2ae60e6"
+
+[[package]]
+name = "volatile"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3ca98349dda8a60ae74e04fd90c7fb4d6a4fbe01e6d3be095478aa0b76f6c0c"
@@ -1383,7 +1402,7 @@ dependencies = [
  "bit_field",
  "bitflags",
  "rustversion",
- "volatile",
+ "volatile 0.4.5",
 ]
 
 [[package]]

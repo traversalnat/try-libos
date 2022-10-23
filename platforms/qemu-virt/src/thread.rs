@@ -11,7 +11,7 @@ use alloc::{
 };
 use core::alloc::Layout;
 use kernel_context::LocalContext;
-use spin::{Lazy, Mutex, RwLock};
+use spin::{Lazy, Mutex};
 
 const STACK_SIZE: usize = 0x8000;
 

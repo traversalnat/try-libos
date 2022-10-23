@@ -16,3 +16,5 @@ qemu-virt-ld = { path = "../qemu-virt-ld"}
 
 kernel-context = {path = "./kernel-context", features = []}
 mem = {path = "../../common/mem"}
+
+isomorphic_drivers = { git = "https://github.com/rcore-os/isomorphic_drivers", rev = "f7cd97a", features = ["log"] }
