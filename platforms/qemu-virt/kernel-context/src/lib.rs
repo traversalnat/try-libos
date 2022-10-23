@@ -153,6 +153,11 @@ impl LocalContext {
         );
         sstatus
     }
+
+    /// 主动让出 CPU
+    pub unsafe fn execute_yield(&self) {
+        execute_yield_naked();
+    }
 }
 
 #[inline]
@@ -244,6 +249,61 @@ unsafe extern "C" fn execute_naked() {
         "   ld sp, (sp)",
         // 恢复调度上下文
         "   LOAD_ALL
+            addi sp, sp, 32*8
+        ",
+        // 返回调度
+        "   ret",
+        "   .option pop",
+        options(noreturn)
+    )
+}
+
+/// 让出 CPU, 从 execute_naked 中摘出, TODO: 去除重复代码
+#[naked]
+unsafe extern "C" fn execute_yield_naked() {
+    // core::arch::asm!(".align 2", options(noreturn));
+    core::arch::asm!(
+        r"  .altmacro
+            .macro _SAVE n
+                sd x\n, \n*8(sp)
+            .endm
+            .macro _SAVE_ALL
+                sd x1, 1*8(sp)
+                .set n, 3
+                .rept 29
+                    _SAVE %n
+                    .set n, n+1
+                .endr
+            .endm
+
+            .macro _LOAD n
+                ld x\n, \n*8(sp)
+            .endm
+            .macro _LOAD_ALL
+                ld x1, 1*8(sp)
+                .set n, 3
+                .rept 29
+                    _LOAD %n
+                    .set n, n+1
+                .endr
+            .endm
+        ",
+        // 位置无关加载
+        "   .option push
+            .option nopic
+        ",
+        "   .align 2",
+        // 切换上下文
+        "1: csrrw sp, sscratch, sp",
+        // 保存线程上下文
+        "   _SAVE_ALL
+            csrrw t0, sscratch, sp
+            sd    t0, 2*8(sp)
+        ",
+        // 切换上下文
+        "   ld sp, (sp)",
+        // 恢复调度上下文
+        "   _LOAD_ALL
             addi sp, sp, 32*8
         ",
         // 返回调度

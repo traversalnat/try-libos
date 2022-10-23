@@ -2,68 +2,123 @@
 
 extern crate alloc;
 
-use kernel_context::{LocalContext};
-use alloc::{alloc::alloc, collections::LinkedList, sync::Arc};
+use alloc::{
+    alloc::{alloc, dealloc},
+    collections::LinkedList,
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 use core::alloc::Layout;
-use spin::{Lazy, Mutex};
+use kernel_context::LocalContext;
+use spin::{Lazy, Mutex, RwLock};
 
 const STACK_SIZE: usize = 0x8000;
 
-// 处理器
-pub static PROCESSOR : Lazy<Mutex<Processor>> = Lazy::new(|| {
-    Mutex::new(Processor::new())
-});
+/// 正在运行的线程
+pub static RUN_THREADS: Lazy<Mutex<LinkedList<Arc<Mutex<TaskControlBlock>>>>> =
+    Lazy::new(|| Mutex::new(LinkedList::new()));
 
-// 保存所有的线程
-pub static THREADS: Lazy<Mutex<LinkedList<TaskControlBlock>>> = Lazy::new(|| {
-    Mutex::new(LinkedList::new())
-});
+/// 所有的线程
+pub static THREADS: Lazy<Mutex<Vec<Arc<Mutex<TaskControlBlock>>>>> =
+    Lazy::new(|| Mutex::new(Vec::new()));
 
-pub struct Processor {
-    pub current: Option<Arc<TaskControlBlock>>,
+pub(crate) static CURRENT: Lazy<Mutex<Arc<Mutex<TaskControlBlock>>>> =
+    Lazy::new(|| Mutex::new(Arc::new(Mutex::new(TaskControlBlock::ZERO))));
+
+pub fn move_run(ctx: Arc<Mutex<TaskControlBlock>>) {
+    ctx.lock().status = TaskStatus::Ready;
+    RUN_THREADS.lock().push_back(ctx);
 }
 
-impl Processor {
-    pub fn new() -> Self {
-        Self {
-            current: None,
-        }
+/// 返回当前 thread
+/// 由于 ctx.lock().excute() 执行当前线程会锁住 ctx, 这里强制 unlock
+pub fn current_thread() -> Arc<Mutex<TaskControlBlock>> {
+    let mut lock = CURRENT.lock();
+    unsafe {
+        (*lock).force_unlock();
     }
+    (*lock).clone()
+}
 
-    pub fn take_current(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.current.take()
-    }
+pub fn set_current_thread(ctx: Arc<Mutex<TaskControlBlock>>) {
+    let mut lock = CURRENT.lock();
+    *lock = ctx;
+}
 
-    pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
-        self.current.as_ref().map(|task| Arc::clone(task))
-    }
+/// 线程状态
+#[derive(PartialEq, Clone)]
+pub enum TaskStatus {
+    UnInit,
+    Ready,
+    Running,
+    Blocking,
+    Finish,
 }
 
 /// 任务控制块。
 ///
 /// 包含任务的上下文、状态和资源。
 pub struct TaskControlBlock {
+    /// 上下文
     ctx: LocalContext,
-    pub finish: bool,
+    /// 栈底部地址
+    stack: usize,
+    /// 返回值
+    pub exit_code: Option<i32>,
+    /// 状态
+    pub status: TaskStatus,
 }
 
 impl TaskControlBlock {
     pub const ZERO: Self = Self {
         ctx: LocalContext::empty(),
-        finish: false,
+        stack: 0,
+        exit_code: None,
+        status: TaskStatus::UnInit,
     };
 
     /// 初始化一个任务。
     pub fn init(&mut self, entry: usize) {
         self.ctx = LocalContext::thread(entry, true);
-        let bottom =
+        self.stack =
             unsafe { alloc(Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap()) } as usize;
-        *self.ctx.sp_mut() = bottom + STACK_SIZE;
+        *self.ctx.sp_mut() = self.stack + STACK_SIZE;
+        self.status = TaskStatus::Ready;
+    }
+
+    /// 让线程执行另一个函数，不重新分配栈
+    pub fn reinit(&mut self, entry: usize) {
+        self.ctx = LocalContext::thread(entry, true);
+        let stack = self.stack as *mut u8;
+        unsafe {
+            stack.write_bytes(0, STACK_SIZE);
+        }
+        *self.ctx.sp_mut() = self.stack + STACK_SIZE;
+        self.status = TaskStatus::Ready;
     }
 
     /// 执行此任务。
     #[inline]
     pub unsafe fn execute(&mut self) {
         self.ctx.execute();
+    }
+
+    /// 执行此任务。
+    #[inline]
+    pub unsafe fn execute_yield(&mut self) {
+        self.ctx.execute_yield();
+    }
+}
+
+impl Drop for TaskControlBlock {
+    fn drop(&mut self) {
+        if self.stack != 0 {
+            let layout = Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap();
+            let ptr = self.stack as *mut u8;
+            unsafe {
+                dealloc(ptr, layout);
+            }
+        }
     }
 }

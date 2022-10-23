@@ -711,11 +711,11 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "helloworld",
  "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
+ "server",
  "stdio",
 ]
 

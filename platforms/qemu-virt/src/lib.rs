@@ -4,6 +4,7 @@
 #![feature(unboxed_closures, fn_traits)]
 
 mod thread;
+mod timer;
 extern crate alloc;
 
 use kernel_context::LocalContext;
@@ -11,13 +12,15 @@ pub use platform::Platform;
 use qemu_virt_ld as linker;
 pub use Virt as PlatformImpl;
 
-use riscv::register::*;
-use thread::*;
-
-use alloc::{vec, collections::LinkedList};
+use alloc::format;
 use alloc::vec::Vec;
+use alloc::{collections::LinkedList, sync::Arc, vec};
+use core::fmt::Arguments;
+use riscv::register::*;
 use sbi_rt::*;
 use spin::{Mutex, Once};
+use thread::*;
+use timer::*;
 use uart_16550::MmioSerialPort;
 
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
@@ -41,17 +44,12 @@ extern "C" fn rust_main() -> ! {
     let (heap_base, heap_size) = Virt::heap();
     mem::init_heap(heap_base, heap_size);
 
-    Virt::console_put_str("init kthread\n");
+    println!("init kthread");
 
     Virt::spawn(obj_main);
 
-    Virt::spawn(|| loop {
-        Virt::console_put_str("loop AAAAAAA\n");
-    });
-
-    Virt::spawn(|| loop {
-        Virt::console_put_str("loop BBBBBBB\n");
-    });
+    // idle thread
+    Virt::spawn(|| loop {});
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -59,7 +57,7 @@ extern "C" fn rust_main() -> ! {
         t.execute();
     }
 
-    Virt::console_put_str("error shutdown\n");
+    println!("error shutdown");
     system_reset(Shutdown, NoReason);
     unreachable!()
 }
@@ -94,8 +92,12 @@ impl platform::Platform for Virt {
     where
         F: 'static + FnMut() + Send + Sync,
     {
-        // TODO thread sleep
-        Self::spawn(_cb);
+        Self::spawn(move || {
+            loop {
+                _cb();
+                sys_sleep(_delay.subsec_millis() as _);
+            }
+        });
     }
 
     // thread
@@ -107,11 +109,13 @@ impl platform::Platform for Virt {
         let mut t = TaskControlBlock::ZERO;
         let address = <F as core::ops::FnOnce<()>>::call_once as usize;
         t.init(address);
-        THREADS.lock().push_back(t);
+        RUN_THREADS.lock().push_back(Arc::new(Mutex::new(t)));
     }
 
     #[inline]
-    fn wait(_delay: core::time::Duration) {}
+    fn wait(_delay: core::time::Duration) {
+        sys_sleep(_delay.subsec_millis() as _);
+    }
 
     #[inline]
     fn heap() -> (usize, usize) {
@@ -121,7 +125,7 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn frequency() -> usize {
-        12_500_000
+        timer::CLOCK_FREQ
     }
 
     #[inline]
@@ -140,38 +144,70 @@ impl platform::Platform for Virt {
 }
 
 extern "C" fn schedule() -> ! {
+    use TaskStatus::*;
     unsafe {
         sie::set_stimer();
     }
-    while !THREADS.lock().is_empty() {
-        let mut ctx = THREADS.lock().pop_front().unwrap();
+    while !RUN_THREADS.lock().is_empty() {
+        let mut ctx = RUN_THREADS.lock().pop_front().unwrap();
         set_timer(Virt::rdtime() as u64 + 12500);
         loop {
-            if ctx.finish {
-                break;
-            }
+            // 设置当前线程
+            set_current_thread(ctx.clone());
+            // 设置当前线程状态
+            ctx.lock().status = Running;
             unsafe {
-                ctx.execute();
+                ctx.lock().execute();
             }
 
             use scause::{Exception, Interrupt, Trap};
             let finish = match scause::read().cause() {
                 Trap::Interrupt(Interrupt::SupervisorTimer) => {
                     set_timer(u64::MAX);
+                    check_timer(); // 检查到时线程
                     false
                 }
                 Trap::Exception(e) => true,
                 Trap::Interrupt(ir) => true,
             };
 
-            ctx.finish = finish;
+            if finish {
+                ctx.lock().status = Finish;
+            }
             break;
         }
-        if !ctx.finish {
-            THREADS.lock().push_back(ctx);
+        if ctx.lock().status == Running {
+            RUN_THREADS.lock().push_back(ctx);
         }
     }
-    Virt::console_put_str("Shutdown\n");
+    println!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
+}
+
+/// 打印。
+///
+/// 给宏用的，用户不会直接调它。
+#[doc(hidden)]
+#[inline]
+pub fn _print(args: Arguments) {
+    Virt::console_put_str(&format!("{}", args));
+}
+
+/// 格式化打印。
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => {
+        $crate::_print(core::format_args!($($arg)*));
+    }
+}
+
+/// 格式化打印并换行。
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => {{
+        $crate::_print(core::format_args!($($arg)*));
+        $crate::println!();
+    }}
 }

@@ -52,7 +52,14 @@ struct BuildArgs {
 }
 
 impl BuildArgs {
+    fn path_exist(path: &str) -> bool {
+        fs::metadata(path).is_ok()
+    }
+
     fn make(&self, is_std: bool) -> PathBuf {
+        assert!(Self::path_exist(PROJECT.join("platforms").join(&self.plat).to_str().unwrap()), "{}",  format!("platform {0} not exist", self.plat));
+        assert!(Self::path_exist(PROJECT.join("apps").join(&self.app).to_str().unwrap()), "{}", format!("app {0} not exist", self.app));
+
         fs::write(
             PROJECT.join("obj").join("Cargo.toml"),
             format!(
