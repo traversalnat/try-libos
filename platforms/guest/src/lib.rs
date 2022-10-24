@@ -3,11 +3,11 @@
 mod basic;
 mod eth;
 
-pub use platform::Platform;
 pub use basic::MacOS as PlatformImpl;
 pub use eth::MACADDR;
-
+pub use platform::Platform;
 use std::process::exit;
+use stdio;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -17,6 +17,29 @@ fn obj_main() {
 
 #[no_mangle]
 fn main() {
+    // mem is not needed in std environment
+    // stdio
+    stdio::set_log_level(option_env!("LOG"));
+    stdio::init(&Stdio);
+
     obj_main();
     exit(0);
+}
+
+struct Stdio;
+impl stdio::Stdio for Stdio {
+    #[inline]
+    fn put_char(&self, c: u8) {
+        PlatformImpl::console_putchar(c);
+    }
+
+    #[inline]
+    fn put_str(&self, s: &str) {
+        PlatformImpl::console_put_str(s);
+    }
+
+    #[inline]
+    fn get_char(&self) -> u8 {
+        PlatformImpl::console_getchar()
+    }
 }

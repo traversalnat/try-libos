@@ -5,8 +5,7 @@
 
 mod thread;
 mod timer;
-mod e1000;
-mod pci;
+mod net;
 extern crate alloc;
 
 use kernel_context::LocalContext;
@@ -14,6 +13,7 @@ pub use platform::Platform;
 use qemu_virt_ld as linker;
 pub use Virt as PlatformImpl;
 
+use stdio::*;
 use alloc::format;
 use alloc::vec::Vec;
 use alloc::{collections::LinkedList, sync::Arc, vec};
@@ -23,9 +23,10 @@ use sbi_rt::*;
 use spin::{Mutex, Once};
 use thread::*;
 use timer::*;
+use net::*;
 use uart_16550::MmioSerialPort;
 
-pub use e1000::MACADDR;
+pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 // 物理内存容量
 const MEMORY: usize = 24 << 20;
 
@@ -37,16 +38,25 @@ fn obj_main() {
 
 linker::boot0!(rust_main; stack = 4096 * 3);
 
-extern "C" fn rust_main() -> ! {
+extern "C" fn rust_main(_hart_id: usize, device_tree_paddr: usize) -> ! {
     let layout = linker::KernelLayout::locate();
     unsafe {
         layout.zero_bss();
     }
 
+    // common 中库由 platform 负责初始化
+    // mem
     let (heap_base, heap_size) = Virt::heap();
     mem::init_heap(heap_base, heap_size);
 
-    println!("init kthread");
+    // stdio
+    stdio::set_log_level(option_env!("LOG"));
+    stdio::init(&Stdio);
+
+    log::info!("probe device");
+    net::init(device_tree_paddr);
+
+    log::info!("init kthread");
 
     Virt::spawn(obj_main);
 
@@ -59,7 +69,7 @@ extern "C" fn rust_main() -> ! {
         t.execute();
     }
 
-    println!("error shutdown");
+    log::warn!("error shutdown");
     system_reset(Shutdown, NoReason);
     unreachable!()
 }
@@ -84,10 +94,21 @@ impl platform::Platform for Virt {
     #[inline]
     fn net_receive(_buf: &mut [u8]) -> usize {
         0
+        // NetDevice.lock().map(|net| {
+        //     if let Ok(len) = net.recv(_buf) {
+        //         len as usize
+        //     } else {
+        //         0
+        //     }
+        // })
     }
 
     #[inline]
-    fn net_transmit(_buf: &mut [u8]) {}
+    fn net_transmit(_buf: &mut [u8]) {
+        // NetDevice.lock().map(|net| {
+        //     net.send(_buf);
+        // });
+    }
 
     #[inline]
     fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
@@ -145,13 +166,32 @@ impl platform::Platform for Virt {
     }
 }
 
+struct Stdio;
+impl stdio::Stdio for Stdio {
+    #[inline]
+    fn put_char(&self, c: u8) {
+        Virt::console_putchar(c);
+    }
+
+    #[inline]
+    fn put_str(&self, s: &str) {
+        Virt::console_put_str(s);
+    }
+
+    #[inline]
+    fn get_char(&self) -> u8 {
+        Virt::console_getchar()
+    }
+}
+
+
 extern "C" fn schedule() -> ! {
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
     }
     while !RUN_THREADS.lock().is_empty() {
-        let mut ctx = RUN_THREADS.lock().pop_front().unwrap();
+        let ctx = RUN_THREADS.lock().pop_front().unwrap();
         set_timer(Virt::rdtime() as u64 + 12500);
         loop {
             // 设置当前线程
@@ -182,34 +222,7 @@ extern "C" fn schedule() -> ! {
             RUN_THREADS.lock().push_back(ctx);
         }
     }
-    println!("Shutdown\n");
+    log::info!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
-}
-
-/// 打印。
-///
-/// 给宏用的，用户不会直接调它。
-#[doc(hidden)]
-#[inline]
-pub fn _print(args: Arguments) {
-    Virt::console_put_str(&format!("{}", args));
-}
-
-/// 格式化打印。
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => {
-        $crate::_print(core::format_args!($($arg)*));
-    }
-}
-
-/// 格式化打印并换行。
-#[macro_export]
-macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => {{
-        $crate::_print(core::format_args!($($arg)*));
-        $crate::println!();
-    }}
 }

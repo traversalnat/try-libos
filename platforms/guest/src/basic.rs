@@ -75,8 +75,8 @@ impl platform::Platform for MacOS {
     }
 
     #[inline]
-    fn wait(delay: core::time::Duration) {
-        thread::sleep(delay);
+    fn wait(_delay: core::time::Duration) {
+        thread::sleep(_delay);
     }
 
     #[inline]

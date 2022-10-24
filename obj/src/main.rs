@@ -6,14 +6,11 @@ extern crate alloc;
 use core::{time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
-use stdio::println;
 use alloc::{vec, vec::Vec};
 
 #[no_mangle]
 fn obj_main() {
     // 连接 platform 和 libs
-    stdio::set_log_level(option_env!("LOG"));
-    stdio::init(&Stdio);
     init_ethernet();
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
@@ -39,25 +36,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-struct Stdio;
 struct PhyNet;
-
-impl stdio::Stdio for Stdio {
-    #[inline]
-    fn put_char(&self, c: u8) {
-        PlatformImpl::console_putchar(c);
-    }
-
-    #[inline]
-    fn put_str(&self, s: &str) {
-        PlatformImpl::console_put_str(s);
-    }
-
-    #[inline]
-    fn get_char(&self) -> u8 {
-        PlatformImpl::console_getchar()
-    }
-}
 
 impl net::PhyNet for PhyNet {
     fn receive(&self, buf: &mut [u8]) -> usize {

@@ -17,4 +17,7 @@ qemu-virt-ld = { path = "../qemu-virt-ld"}
 kernel-context = {path = "./kernel-context", features = []}
 mem = {path = "../../common/mem"}
 
-isomorphic_drivers = { git = "https://github.com/rcore-os/isomorphic_drivers", rev = "f7cd97a", features = ["log"] }
+virtio-drivers = "0.1.0"
+device_tree = { git = "https://github.com/rcore-os/device_tree-rs", rev = "2fa8411" }
+
+stdio = {path = "../../common/stdio"}

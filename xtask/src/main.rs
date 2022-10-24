@@ -72,7 +72,7 @@ edition = \"2021\"
 [dependencies]
 app = {{ path = \"../apps/{0}\", package = \"{0}\" }}
 platform = {{ path = \"../platforms/{1}\", package = \"{1}\" }}
-stdio = {{ path = \"../libs/stdio\" }}
+stdio = {{ path = \"../common/stdio\" }}
 net = {{ path = \"../libs/net\" }}
 mem = {{ path = \"../common/mem\", features = [{2}] }}
 
@@ -134,6 +134,7 @@ std = []
             .arg("-kernel")
             .arg(objcopy(elf, true))
             .args(&["-m", "64M"])
+            .args(["-device", "virtio-net-device"])
             .invoke();
     }
 }

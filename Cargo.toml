@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "xtask",
-    "libs/stdio",
+    "common/stdio",
     "libs/time",
     "libs/net",
     "common/mem",

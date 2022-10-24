@@ -5,15 +5,15 @@ edition = "2021"
 
 [dependencies]
 app = { path = "../apps/helloworld", package = "helloworld" }
-platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
-stdio = { path = "../libs/stdio" }
+platform = { path = "../platforms/guest", package = "guest" }
+stdio = { path = "../common/stdio" }
 net = { path = "../libs/net" }
-mem = { path = "../common/mem", features = [] }
+mem = { path = "../common/mem", features = ["std"] }
 
 [build-dependencies]
-linker = { path = "../platforms/qemu-virt-ld", package = "qemu-virt-ld" }
+linker = { path = "../platforms/guest-ld", package = "guest-ld" }
 
 [features]
-default = []
+default = ["std"]
 std = []
 

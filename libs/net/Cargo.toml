@@ -15,5 +15,5 @@ smoltcp = { version = "0.8.1", default-features = false, features = [
     "log", "verbose"] }
 spin = "0.9.4"
 mem = { path = "../../common/mem/"}
-stdio = { path = "../stdio/"}
+stdio = { path = "../../common/stdio/"}
 var_bitmap = { path = "../var_bitmap/"}

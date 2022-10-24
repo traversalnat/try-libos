@@ -22,3 +22,4 @@ smoltcp = { version = "0.8.1", default-features = false, features = [
     "proto-ipv4",
     "log", "verbose"] }
 bimap = "0.6.2"
+stdio = {path = "../../common/stdio"}

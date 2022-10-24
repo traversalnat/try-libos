@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 mem = { path = "../../common/mem" }
 net = { path = "../../libs/net" }
-stdio = { path = "../../libs/stdio" }
+stdio = { path = "../../common/stdio" }

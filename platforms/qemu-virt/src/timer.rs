@@ -1,6 +1,5 @@
 extern crate alloc;
 use crate::thread::*;
-use crate::*;
 use alloc::{
     sync::Arc,
     vec,
