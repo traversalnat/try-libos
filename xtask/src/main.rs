@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use os_xtask_utils::{BinUtil, Cargo, CommandExt, Qemu};
 use std::{
     fs,
-    path::{Path, PathBuf}, 
+    path::{Path, PathBuf},
 };
 
 static PROJECT: Lazy<&'static Path> =
@@ -31,7 +31,9 @@ enum Commands {
 fn main() {
     use Commands::*;
     match Cli::parse().command {
-        Make(args) => { args.make(false); },
+        Make(args) => {
+            args.make(false);
+        }
         Asm(args) => args.asm(),
         Guest(args) => args.guest(),
         Qemu(args) => args.qemu(),
@@ -49,6 +51,8 @@ struct BuildArgs {
     /// log level
     #[clap(long)]
     log: Option<String>,
+    #[clap(long)]
+    gdb: Option<u16>,
 }
 
 impl BuildArgs {
@@ -57,8 +61,16 @@ impl BuildArgs {
     }
 
     fn make(&self, is_std: bool) -> PathBuf {
-        assert!(Self::path_exist(PROJECT.join("platforms").join(&self.plat).to_str().unwrap()), "{}",  format!("platform {0} not exist", self.plat));
-        assert!(Self::path_exist(PROJECT.join("apps").join(&self.app).to_str().unwrap()), "{}", format!("app {0} not exist", self.app));
+        assert!(
+            Self::path_exist(PROJECT.join("platforms").join(&self.plat).to_str().unwrap()),
+            "{}",
+            format!("platform {0} not exist", self.plat)
+        );
+        assert!(
+            Self::path_exist(PROJECT.join("apps").join(&self.app).to_str().unwrap()),
+            "{}",
+            format!("app {0} not exist", self.app)
+        );
 
         fs::write(
             PROJECT.join("obj").join("Cargo.toml"),
@@ -86,11 +98,7 @@ std = []
 ",
                 self.app,
                 self.plat,
-                if is_std {
-                    "\"std\""
-                } else {
-                    ""
-                },
+                if is_std { "\"std\"" } else { "" },
             ),
         )
         .unwrap();
@@ -134,7 +142,15 @@ std = []
             .arg("-kernel")
             .arg(objcopy(elf, true))
             .args(&["-m", "64M"])
-            .args(["-device", "virtio-net-device"])
+            .args(["-netdev", "user,id=net0,hostfwd=tcp::6000-:6000"])
+            .args([
+                "-object",
+                "filter-dump,id=net0,netdev=net0,file=packets.pcap",
+            ])
+            .args(["-device", "e1000,netdev=net0"])
+            .optional(&self.gdb, |qemu, gdb| {
+                qemu.args(&["-S", "-gdb", &format!("tcp::{gdb}")]);
+            })
             .invoke();
     }
 }

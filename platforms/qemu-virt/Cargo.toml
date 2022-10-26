@@ -18,6 +18,8 @@ kernel-context = {path = "./kernel-context", features = []}
 mem = {path = "../../common/mem"}
 
 virtio-drivers = "0.1.0"
-device_tree = { git = "https://github.com/rcore-os/device_tree-rs", rev = "2fa8411" }
-
+dtb-walker = "0.1.3"
 stdio = {path = "../../common/stdio"}
+
+isomorphic_drivers = { git = "https://github.com/rcore-os/isomorphic_drivers", rev = "f7cd97a", features = ["log"] }
+volatile = "0.3"

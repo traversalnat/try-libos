@@ -3,27 +3,30 @@
 #![feature(linkage)]
 #![feature(unboxed_closures, fn_traits)]
 
+mod e1000;
+mod pci;
 mod thread;
 mod timer;
-mod net;
 extern crate alloc;
 
+use alloc::boxed::Box;
 use kernel_context::LocalContext;
 pub use platform::Platform;
 use qemu_virt_ld as linker;
 pub use Virt as PlatformImpl;
 
-use stdio::*;
 use alloc::format;
 use alloc::vec::Vec;
 use alloc::{collections::LinkedList, sync::Arc, vec};
 use core::fmt::Arguments;
+use core::time::Duration;
 use riscv::register::*;
 use sbi_rt::*;
 use spin::{Mutex, Once};
+use stdio::log::info;
+use stdio::*;
 use thread::*;
 use timer::*;
-use net::*;
 use uart_16550::MmioSerialPort;
 
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
@@ -38,7 +41,7 @@ fn obj_main() {
 
 linker::boot0!(rust_main; stack = 4096 * 3);
 
-extern "C" fn rust_main(_hart_id: usize, device_tree_paddr: usize) -> ! {
+extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
     unsafe {
         layout.zero_bss();
@@ -49,19 +52,27 @@ extern "C" fn rust_main(_hart_id: usize, device_tree_paddr: usize) -> ! {
     let (heap_base, heap_size) = Virt::heap();
     mem::init_heap(heap_base, heap_size);
 
+    unsafe {
+        UART0.call_once(|| (unsafe { MmioSerialPort::new(0x1000_0000) }));
+    }
+
     // stdio
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
 
-    log::info!("probe device");
-    net::init(device_tree_paddr);
-
+    pci::pci_init();
     log::info!("init kthread");
 
     Virt::spawn(obj_main);
 
+    Virt::spawn(loop_runner_1);
+    Virt::spawn(loop_runner_2);
+
     // idle thread
-    Virt::spawn(|| loop {});
+    Virt::spawn(|| loop {
+        // if net is used
+        e1000::async_recv();
+    });
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -74,40 +85,58 @@ extern "C" fn rust_main(_hart_id: usize, device_tree_paddr: usize) -> ! {
     unreachable!()
 }
 
+fn loop_runner_1() {
+    loop {
+        log::info!("loop runner 1");
+        // sys_yield();
+    }
+}
+
+fn loop_runner_2() {
+    loop {
+        log::info!("loop runner 2");
+        // sys_yield();
+    }
+}
+
 pub struct Virt;
+
+// unsafe: 暂时未找到使用 Mutex 很好的办法
+// 1. 自定义 Mutex, 在 lock 失败时让出 CPU
+// 2. 使用 try_lock, lock 失败让出 CPU
+static mut UART0: Once<MmioSerialPort> = Once::new();
 
 impl platform::Platform for Virt {
     #[inline]
     fn console_getchar() -> u8 {
-        // 无法解决 static 变量需要 Mutex 的问题
-        // 要么在时钟中断时放弃锁（复杂）
-        // 要么在开始强制解除锁（成本太高）
-        // 关键在于打印一个字符需要的上锁成本较高
-        sbi_rt::legacy::console_getchar() as _
+        unsafe { UART0.get_mut().unwrap().receive() }
     }
 
     #[inline]
     fn console_putchar(c: u8) {
-        sbi_rt::legacy::console_putchar(c as usize);
+        unsafe {
+            UART0.get_mut().unwrap().send(c);
+        }
     }
 
     #[inline]
-    fn net_receive(_buf: &mut [u8]) -> usize {
-        0
-        // NetDevice.lock().map(|net| {
-        //     if let Ok(len) = net.recv(_buf) {
-        //         len as usize
-        //     } else {
-        //         0
-        //     }
-        // })
+    fn net_receive(buf: &mut [u8]) -> usize {
+        e1000::recv(buf)
     }
 
     #[inline]
-    fn net_transmit(_buf: &mut [u8]) {
-        // NetDevice.lock().map(|net| {
-        //     net.send(_buf);
-        // });
+    fn net_transmit(buf: &mut [u8]) {
+        e1000::send(buf);
+    }
+
+    #[inline]
+    fn net_can_send() -> bool {
+        e1000::can_send()
+    }
+
+    #[inline]
+    fn net_can_recv() -> bool {
+        e1000::can_recv()
     }
 
     #[inline]
@@ -115,29 +144,24 @@ impl platform::Platform for Virt {
     where
         F: 'static + FnMut() + Send + Sync,
     {
-        Self::spawn(move || {
-            loop {
-                _cb();
-                sys_sleep(_delay.subsec_millis() as _);
-            }
+        Self::spawn(move || loop {
+            _cb();
+            Self::wait(_delay);
         });
     }
 
     // thread
     #[inline]
-    fn spawn<F>(_f: F)
+    fn spawn<F>(f: F)
     where
         F: FnOnce() + Send + 'static,
     {
-        let mut t = TaskControlBlock::ZERO;
-        let address = <F as core::ops::FnOnce<()>>::call_once as usize;
-        t.init(address);
-        RUN_THREADS.lock().push_back(Arc::new(Mutex::new(t)));
+        thread::spawn(f);
     }
 
     #[inline]
     fn wait(_delay: core::time::Duration) {
-        sys_sleep(_delay.subsec_millis() as _);
+        sys_sleep(_delay.as_millis() as _);
     }
 
     #[inline]
@@ -184,7 +208,6 @@ impl stdio::Stdio for Stdio {
     }
 }
 
-
 extern "C" fn schedule() -> ! {
     use TaskStatus::*;
     unsafe {
@@ -209,8 +232,11 @@ extern "C" fn schedule() -> ! {
                     check_timer(); // 检查到时线程
                     false
                 }
-                Trap::Exception(e) => true,
-                Trap::Interrupt(ir) => true,
+                Trap::Exception(e) => {
+                    info!("Exception {e:?}");
+                    true
+                }
+                _ => false,
             };
 
             if finish {

@@ -3,17 +3,19 @@
 mod ethernet;
 
 use core::result::Result;
-pub use ethernet::Duration as Duration;
-pub use ethernet::Instant as Instant;
+pub use ethernet::Duration;
+use ethernet::GlobalEthernetDriver;
+pub use ethernet::Instant;
 pub use ethernet::SocketHandle;
 pub use smoltcp::wire::{IpAddress, IpEndpoint};
-use ethernet::GlobalEthernetDriver;
 use spin::Once;
 
 /// 这个接口定义了网络物理层receive, transmit
 pub trait PhyNet: Sync {
     fn receive(&self, buf: &mut [u8]) -> usize;
     fn transmit(&self, buf: &mut [u8]);
+    fn can_send(&self) -> bool;
+    fn can_recv(&self) -> bool;
 }
 
 // 网络物理设备

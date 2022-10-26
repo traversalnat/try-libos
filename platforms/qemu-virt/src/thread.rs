@@ -6,6 +6,7 @@ use alloc::{
     sync::Arc,
     vec,
     vec::Vec,
+    boxed::Box,
 };
 use core::alloc::Layout;
 use kernel_context::LocalContext;
@@ -85,6 +86,12 @@ impl TaskControlBlock {
         self.status = TaskStatus::Ready;
     }
 
+    /// 初始化一个任务。
+    pub fn init_with_arg(&mut self, entry: usize, arg: usize) {
+        self.init(entry);
+        *self.ctx.a_mut(0) = arg;
+    }
+
     /// 让线程执行另一个函数，不重新分配栈
     pub fn reinit(&mut self, entry: usize) {
         self.ctx = LocalContext::thread(entry, true);
@@ -119,4 +126,63 @@ impl Drop for TaskControlBlock {
             }
         }
     }
+}
+
+struct ThreadRunner<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    tcb: Arc<Mutex<TaskControlBlock>>,
+    closure: Option<F>,
+}
+pub trait ThreadRun {
+    fn run(&mut self) ;
+}
+
+impl<F> ThreadRun for ThreadRunner<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    fn run(&mut self)  {
+        let closure = self.closure.take().expect("you can't run a thread twice!");
+        let ret = (closure)();
+        self.tcb.lock().status = TaskStatus::Finish;
+    }
+}
+
+pub type BoxedThreadRun = Box<dyn ThreadRun>;
+
+fn leak_boxed_thread_run(b: Box<BoxedThreadRun>) -> usize {
+    Box::leak(b) as *mut _ as usize
+}
+fn restore_boxed_thread_run(a: usize) -> Box<BoxedThreadRun> {
+    unsafe { Box::from_raw(a as *mut BoxedThreadRun) }
+}
+
+extern "C" fn run_boxed_thread(arg: usize) {
+    let mut boxed_thread_run = restore_boxed_thread_run(arg);
+    boxed_thread_run.run();
+    drop(boxed_thread_run);
+}
+
+pub fn spawn<F>(f: F)
+    where F: FnOnce() + Send + 'static 
+{
+    let mut t = TaskControlBlock::ZERO;
+    t.status = TaskStatus::Ready;
+
+    let t = Arc::new(Mutex::new(t));
+
+    let mut runner = ThreadRunner {
+        tcb: t.clone(),
+        closure: Some(f),
+    };
+
+    let box_runner : Box<BoxedThreadRun> = Box::new(Box::new(runner));
+    let arg = leak_boxed_thread_run(box_runner);
+
+    t.lock().init_with_arg(run_boxed_thread as usize, arg);
+
+    THREADS.lock().push(t.clone());
+    RUN_THREADS.lock().push_back(t.clone());
 }

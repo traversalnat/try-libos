@@ -7,8 +7,8 @@ use stdio::*;
 
 pub fn app_main() {
     let receiver = sys_sock_create();
-    // let remote_endpoint = IpEndpoint::new(IpAddress::v4(49, 235, 113, 66), 6000);
-    let remote_endpoint = IpEndpoint::new(IpAddress::v4(192, 168, 1, 110), 6000);
+    let remote_endpoint = IpEndpoint::new(IpAddress::v4(49, 235, 113, 66), 6000);
+    // let remote_endpoint = IpEndpoint::new(IpAddress::v4(192, 168, 1, 110), 6000);
     if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {};
     println!("connected");
 

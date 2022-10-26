@@ -14,7 +14,16 @@ pub trait Platform {
     fn net_receive(_buf: &mut [u8]) -> usize {
         0
     }
+
     fn net_transmit(_buf: &mut [u8]) {}
+
+    fn net_can_send() -> bool {
+        true
+    }
+
+    fn net_can_recv() -> bool {
+        true
+    }
 
     // timer:
     fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)

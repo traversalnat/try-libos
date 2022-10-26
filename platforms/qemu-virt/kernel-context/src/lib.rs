@@ -13,8 +13,8 @@ pub mod foreign;
 #[derive(Clone)]
 #[repr(C)]
 pub struct LocalContext {
-    sctx: usize,
-    x: [usize; 31],
+    sctx: usize,    // sscratch, 用于保存调度上下文 sp 
+    x: [usize; 31], // x1-x31, 其中 x2 为线程上下文 sp
     sepc: usize,
     /// 是否以特权态切换。
     pub supervisor: bool,
@@ -54,7 +54,7 @@ impl LocalContext {
     pub const fn thread(pc: usize, interrupt: bool) -> Self {
         Self {
             sctx: 0,
-            x: [0; 31],
+            x: [0; 31], // x1 - x31; x0 是 zero 寄存器无需保安村
             supervisor: true,
             interrupt,
             sepc: pc,
@@ -146,7 +146,7 @@ impl LocalContext {
                 csrr  {sepc}   , sepc
                 csrr  {sstatus}, sstatus
             ",
-            sscratch      = in       (reg) self,
+            sscratch      = in       (reg) self,    // self.sctx init with 0
             sepc          = inlateout(reg) self.sepc,
             sstatus       = inlateout(reg) sstatus,
             execute_naked = sym execute_naked,
@@ -156,7 +156,7 @@ impl LocalContext {
 
     /// 主动让出 CPU
     pub unsafe fn execute_yield(&self) {
-        execute_yield_naked();
+        yield_naked();
     }
 }
 
@@ -178,137 +178,12 @@ fn build_sstatus(supervisor: bool, interrupt: bool) -> usize {
     sstatus
 }
 
-/// 线程切换核心部分。
-///
-/// 通用寄存器压栈，然后从预存在 `sscratch` 里的上下文指针恢复线程通用寄存器。
-///
-/// # Safety
-///
-/// 裸函数。
-#[naked]
-unsafe extern "C" fn execute_naked() {
-    core::arch::asm!(
-        r"  .altmacro
-            .macro SAVE n
-                sd x\n, \n*8(sp)
-            .endm
-            .macro SAVE_ALL
-                sd x1, 1*8(sp)
-                .set n, 3
-                .rept 29
-                    SAVE %n
-                    .set n, n+1
-                .endr
-            .endm
+core::arch::global_asm!(include_str!("execute.S"));
 
-            .macro LOAD n
-                ld x\n, \n*8(sp)
-            .endm
-            .macro LOAD_ALL
-                ld x1, 1*8(sp)
-                .set n, 3
-                .rept 29
-                    LOAD %n
-                    .set n, n+1
-                .endr
-            .endm
-        ",
-        // 位置无关加载
-        "   .option push
-            .option nopic
-        ",
-        // 保存调度上下文
-        "   addi sp, sp, -32*8
-            SAVE_ALL
-        ",
-        // 设置陷入入口
-        "   la   t0, 1f
-            csrw stvec, t0
-        ",
-        // 保存调度上下文地址并切换上下文
-        "   csrr t0, sscratch
-            sd   sp, (t0)
-            mv   sp, t0
-        ",
-        // 恢复线程上下文
-        "   LOAD_ALL
-            ld   sp, 2*8(sp)
-        ",
-        // 执行线程
-        "   sret",
-        // 陷入
-        "   .align 2",
-        // 切换上下文
-        "1: csrrw sp, sscratch, sp",
-        // 保存线程上下文
-        "   SAVE_ALL
-            csrrw t0, sscratch, sp
-            sd    t0, 2*8(sp)
-        ",
-        // 切换上下文
-        "   ld sp, (sp)",
-        // 恢复调度上下文
-        "   LOAD_ALL
-            addi sp, sp, 32*8
-        ",
-        // 返回调度
-        "   ret",
-        "   .option pop",
-        options(noreturn)
-    )
-}
-
-/// 让出 CPU, 从 execute_naked 中摘出, TODO: 去除重复代码
-#[naked]
-unsafe extern "C" fn execute_yield_naked() {
-    // core::arch::asm!(".align 2", options(noreturn));
-    core::arch::asm!(
-        r"  .altmacro
-            .macro _SAVE n
-                sd x\n, \n*8(sp)
-            .endm
-            .macro _SAVE_ALL
-                sd x1, 1*8(sp)
-                .set n, 3
-                .rept 29
-                    _SAVE %n
-                    .set n, n+1
-                .endr
-            .endm
-
-            .macro _LOAD n
-                ld x\n, \n*8(sp)
-            .endm
-            .macro _LOAD_ALL
-                ld x1, 1*8(sp)
-                .set n, 3
-                .rept 29
-                    _LOAD %n
-                    .set n, n+1
-                .endr
-            .endm
-        ",
-        // 位置无关加载
-        "   .option push
-            .option nopic
-        ",
-        "   .align 2",
-        // 切换上下文
-        "1: csrrw sp, sscratch, sp",
-        // 保存线程上下文
-        "   _SAVE_ALL
-            csrrw t0, sscratch, sp
-            sd    t0, 2*8(sp)
-        ",
-        // 切换上下文
-        "   ld sp, (sp)",
-        // 恢复调度上下文
-        "   _LOAD_ALL
-            addi sp, sp, 32*8
-        ",
-        // 返回调度
-        "   ret",
-        "   .option pop",
-        options(noreturn)
-    )
+extern "C" {
+    /// Switch to the context of `next_task_cx_ptr`, saving the current context
+    /// in `current_task_cx_ptr`.
+    pub fn execute_naked();
+    /// yield
+    pub fn yield_naked();
 }

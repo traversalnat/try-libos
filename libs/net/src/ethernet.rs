@@ -62,15 +62,17 @@ impl<'a> Device<'a> for EthernetDevice {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
+        stdio::log::info!("try recv");
+
         match PHYNET.get().map(|net| net.receive(&mut self.rx_buffer)) {
             Some(size) => {
-                if size != 0 {
+                if size == 0 {
+                    None
+                } else {
                     Some((
                         RxToken(&mut self.rx_buffer[..size]),
                         TxToken(&mut self.tx_buffer[..]),
                     ))
-                } else {
-                    None
                 }
             }
             None => None,
@@ -78,7 +80,13 @@ impl<'a> Device<'a> for EthernetDevice {
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(TxToken(&mut self.tx_buffer[..]))
+        PHYNET.get().map(|net| {
+            if net.can_send() {
+                Some(TxToken(&mut self.tx_buffer[..]))
+            } else {
+                None
+            }
+        }).unwrap()
     }
 }
 

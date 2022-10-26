@@ -7,6 +7,7 @@ use core::{time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use alloc::{vec, vec::Vec};
+use stdio::log::info;
 
 #[no_mangle]
 fn obj_main() {
@@ -19,12 +20,10 @@ fn obj_main() {
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    // TODO 使用 poll_delay 来决定下一次 poll 的时间
-    PlatformImpl::schedule_with_delay(Duration::from_micros(1), move || {
+    PlatformImpl::schedule_with_delay(Duration::from_millis(1), move || {
+        info!("poll");
         let val = PlatformImpl::rdtime() as i64;
         net::ETHERNET.poll(net::Instant::from_millis(val));
-        let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
-        PlatformImpl::wait(delay.into());
     });
 }
 
@@ -45,5 +44,13 @@ impl net::PhyNet for PhyNet {
 
     fn transmit(&self, buf: &mut [u8]) {
         PlatformImpl::net_transmit(buf);
+    }
+
+    fn can_send(&self) -> bool {
+        PlatformImpl::net_can_send()
+    }
+
+    fn can_recv(&self) -> bool {
+        PlatformImpl::net_can_recv()
     }
 }

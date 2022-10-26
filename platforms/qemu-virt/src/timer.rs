@@ -6,6 +6,7 @@ use alloc::{
     vec::Vec,
     collections::BinaryHeap,
 };
+use stdio::log::info;
 use core::cmp::Ordering;
 use spin::{Lazy, Mutex};
 use riscv::register::*;
@@ -16,7 +17,7 @@ const MILLI_PER_SEC: usize = 1_000;
 const MICRO_PER_SEC: usize = 1_000_000;
 
 pub struct TimerCondVar {
-    pub expire_ms: usize,
+    pub expire_ms: u128,
     pub task: Arc<Mutex<TaskControlBlock>>,
 }
 
@@ -43,7 +44,7 @@ impl Ord for TimerCondVar {
 pub static TIMERS: Lazy<Mutex<BinaryHeap<TimerCondVar>>> =
     Lazy::new( || Mutex::new(BinaryHeap::<TimerCondVar>::new()) );
 
-pub fn move_timer(expire_ms: usize, task: Arc<Mutex<TaskControlBlock>>) {
+pub fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
     task.lock().status = TaskStatus::Blocking;
     TIMERS.lock().push(TimerCondVar { expire_ms, task });
 }
@@ -63,17 +64,18 @@ pub fn check_timer() {
 }
 
 /// get current time in microseconds
-pub fn get_time_us() -> usize {
-    time::read() / (CLOCK_FREQ / MICRO_PER_SEC)
+pub fn get_time_us() -> u128 {
+    (time::read() / (CLOCK_FREQ / MICRO_PER_SEC)) as u128
 }
 
 /// get current time in milliseconds
-pub fn get_time_ms() -> usize {
-    time::read() / (CLOCK_FREQ / MILLI_PER_SEC)
+pub fn get_time_ms() -> u128 {
+    (time::read() / (CLOCK_FREQ / MILLI_PER_SEC)) as u128
 }
 
 /// sleep current task
-pub fn sys_sleep(ms: usize) -> isize {
+pub fn sys_sleep(ms: u128) -> isize {
+    info!("sleep {ms} ms");
     let expire_ms = get_time_ms() + ms;
     let ctx = current_thread();
     move_timer(expire_ms, ctx);

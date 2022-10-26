@@ -81,7 +81,7 @@ macro_rules! boot0 {
             core::arch::asm!(
                 "la sp, __end",
                 "j  {main}",
-                main = sym rust_main,
+                main = sym $entry,
                 options(noreturn),
             )
         }
