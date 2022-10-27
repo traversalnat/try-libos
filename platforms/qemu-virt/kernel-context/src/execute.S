@@ -67,3 +67,10 @@ execute_naked:
 	addi sp, sp, 32*8
 	// 返回调度
 	ret
+
+	/// 模拟异常发生, 将 2f 指令置为 sepc, 跳转至 1b, 返回时直接 ret
+yield_naked:
+	la t0, 2f
+	csrw sepc, t0
+	j 1b
+	2:ret

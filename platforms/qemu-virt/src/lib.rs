@@ -71,6 +71,10 @@ extern "C" fn rust_main() -> ! {
         e1000::async_recv();
     });
 
+    Virt::spawn(|| loop {
+        timer::sys_yield();
+    });
+
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
     unsafe {
@@ -213,10 +217,6 @@ extern "C" fn schedule() -> ! {
                 Trap::Interrupt(Interrupt::SupervisorTimer) => {
                     set_timer(u64::MAX);
                     check_timer(); // 检查到时线程
-                    false
-                }
-                Trap::Exception(Exception::Breakpoint) => {
-                    ctx.lock().move_next();
                     false
                 }
                 _ => true,

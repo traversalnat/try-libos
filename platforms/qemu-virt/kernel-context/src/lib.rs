@@ -156,7 +156,7 @@ impl LocalContext {
 
     /// 主动让出 CPU
     pub unsafe fn execute_yield(&self) {
-        core::arch::asm!("ebreak");
+        yield_naked();
     }
 }
 
@@ -184,4 +184,7 @@ extern "C" {
     /// Switch to the context of `next_task_cx_ptr`, saving the current context
     /// in `current_task_cx_ptr`.
     pub fn execute_naked();
+
+    /// yield
+    pub fn yield_naked();
 }
