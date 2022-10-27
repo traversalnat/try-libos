@@ -65,7 +65,6 @@ pub fn sync_recv(buf: &mut [u8]) -> usize {
         .expect("E1000 Driver uninit")
         .receive()
     {
-        log::info!("recv");
         let len = core::cmp::min(buf.len(), block.len());
         buf[..len].copy_from_slice(&block[..len]);
         return len;
@@ -93,7 +92,6 @@ pub fn async_recv() {
         .expect("E1000 Driver uninit")
         .receive()
     {
-        log::info!("async_recv");
         let mut buf = vec![0u8; block.len()];
         buf.copy_from_slice(&block);
         RECV_RING.lock().push_back(buf);

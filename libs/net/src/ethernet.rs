@@ -62,8 +62,6 @@ impl<'a> Device<'a> for EthernetDevice {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        stdio::log::info!("try recv");
-
         match PHYNET.get().map(|net| net.receive(&mut self.rx_buffer)) {
             Some(size) => {
                 if size == 0 {
