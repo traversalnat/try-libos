@@ -65,9 +65,6 @@ extern "C" fn rust_main() -> ! {
 
     Virt::spawn(obj_main);
 
-    Virt::spawn(loop_runner_1);
-    Virt::spawn(loop_runner_2);
-
     // idle thread
     Virt::spawn(|| loop {
         // if net is used
@@ -83,20 +80,6 @@ extern "C" fn rust_main() -> ! {
     log::warn!("error shutdown");
     system_reset(Shutdown, NoReason);
     unreachable!()
-}
-
-fn loop_runner_1() {
-    loop {
-        log::info!("loop runner 1");
-        // sys_yield();
-    }
-}
-
-fn loop_runner_2() {
-    loop {
-        log::info!("loop runner 2");
-        // sys_yield();
-    }
 }
 
 pub struct Virt;
@@ -232,11 +215,11 @@ extern "C" fn schedule() -> ! {
                     check_timer(); // 检查到时线程
                     false
                 }
-                Trap::Exception(e) => {
-                    info!("Exception {e:?}");
-                    true
+                Trap::Exception(Exception::Breakpoint) => {
+                    ctx.lock().move_next();
+                    false
                 }
-                _ => false,
+                _ => true,
             };
 
             if finish {

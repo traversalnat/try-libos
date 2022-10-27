@@ -33,7 +33,7 @@ execute_naked:
 	// 保存除 sp、x0 以外的 x 系列寄存器
 	SAVE_ALL
 	// 设置陷入入口 标签为 1 (用于返回到调度函数)
-	la   t0, yield_naked
+	la   t0, 1f
 	csrw stvec, t0
 	// 保存调度上下文地址并切换上下文
 	// sscratch 的值为 LocalContext.sctx 的地址, 也是该结构体的起始地址
@@ -53,8 +53,7 @@ execute_naked:
 	// 陷入
 	// 交换 sp 与 sscratch, sscratch 为 LocalContext 起始地址, sscratch临时保存 sp 
 	.align 2        
-yield_naked:
-	csrrw sp, sscratch, sp
+	1:csrrw sp, sscratch, sp
 	// 保存线程上下文
 	SAVE_ALL
 	// 将 sscratch 中的 sp 保存到 t0, 恢复 sscratch 为原 LocalContext 起始地址

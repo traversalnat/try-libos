@@ -2,11 +2,11 @@ extern crate alloc;
 
 use alloc::{
     alloc::{alloc, dealloc},
+    boxed::Box,
     collections::LinkedList,
     sync::Arc,
     vec,
     vec::Vec,
-    boxed::Box,
 };
 use core::alloc::Layout;
 use kernel_context::LocalContext;
@@ -103,6 +103,10 @@ impl TaskControlBlock {
         self.status = TaskStatus::Ready;
     }
 
+    pub fn move_next(&mut self) {
+        self.ctx.move_next();
+    }
+
     /// 执行此任务。
     #[inline]
     pub unsafe fn execute(&mut self) {
@@ -136,14 +140,14 @@ where
     closure: Option<F>,
 }
 pub trait ThreadRun {
-    fn run(&mut self) ;
+    fn run(&mut self);
 }
 
 impl<F> ThreadRun for ThreadRunner<F>
 where
     F: FnOnce() + Send + 'static,
 {
-    fn run(&mut self)  {
+    fn run(&mut self) {
         let closure = self.closure.take().expect("you can't run a thread twice!");
         let ret = (closure)();
         self.tcb.lock().status = TaskStatus::Finish;
@@ -155,6 +159,7 @@ pub type BoxedThreadRun = Box<dyn ThreadRun>;
 fn leak_boxed_thread_run(b: Box<BoxedThreadRun>) -> usize {
     Box::leak(b) as *mut _ as usize
 }
+
 fn restore_boxed_thread_run(a: usize) -> Box<BoxedThreadRun> {
     unsafe { Box::from_raw(a as *mut BoxedThreadRun) }
 }
@@ -166,7 +171,8 @@ extern "C" fn run_boxed_thread(arg: usize) {
 }
 
 pub fn spawn<F>(f: F)
-    where F: FnOnce() + Send + 'static 
+where
+    F: FnOnce() + Send + 'static,
 {
     let mut t = TaskControlBlock::ZERO;
     t.status = TaskStatus::Ready;
@@ -178,7 +184,7 @@ pub fn spawn<F>(f: F)
         closure: Some(f),
     };
 
-    let box_runner : Box<BoxedThreadRun> = Box::new(Box::new(runner));
+    let box_runner: Box<BoxedThreadRun> = Box::new(Box::new(runner));
     let arg = leak_boxed_thread_run(box_runner);
 
     t.lock().init_with_arg(run_boxed_thread as usize, arg);
