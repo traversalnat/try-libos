@@ -5,6 +5,7 @@ extern crate alloc;
 
 use core::{time::Duration};
 
+use net::Instant;
 use platform::{Platform, PlatformImpl, MACADDR};
 use alloc::{vec, vec::Vec};
 use stdio::log::info;
@@ -20,8 +21,7 @@ fn obj_main() {
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    PlatformImpl::schedule_with_delay(Duration::from_millis(1), move || {
-        info!("poll");
+    PlatformImpl::schedule_with_delay(Duration::from_millis(100), move || {
         let val = PlatformImpl::rdtime() as i64;
         net::ETHERNET.poll(net::Instant::from_millis(val));
     });

@@ -13,7 +13,7 @@ use spin::Mutex;
 use lazy_static::*;
 
 lazy_static!{
-    static ref ETH_DEVICE: Mutex<EthDevice> =  {
+    pub static ref ETH_DEVICE: Mutex<EthDevice> =  {
         Mutex::new(EthDevice::new())
     };
 }
@@ -62,6 +62,7 @@ impl platform::Platform for MacOS {
         thread::spawn(move || loop {
             thread::sleep(_delay);
             cb();
+            thread::yield_now();
         });
     }
 

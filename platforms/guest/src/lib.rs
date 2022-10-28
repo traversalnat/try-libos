@@ -4,6 +4,8 @@ mod basic;
 mod eth;
 
 pub use basic::MacOS as PlatformImpl;
+use basic::ETH_DEVICE;
+use core::time::Duration;
 pub use eth::MACADDR;
 pub use platform::Platform;
 use std::process::exit;
@@ -21,6 +23,10 @@ fn main() {
     // stdio
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
+
+    PlatformImpl::schedule_with_delay(Duration::from_millis(10), || {
+        ETH_DEVICE.lock().async_recv();
+    });
 
     obj_main();
     exit(0);

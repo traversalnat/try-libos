@@ -1,9 +1,14 @@
+extern crate alloc;
+
 use core::panic;
 
 use pnet::datalink::Channel::Ethernet;
 use pnet::datalink::DataLinkReceiver;
 use pnet::datalink::DataLinkSender;
 use pnet::datalink::{self, NetworkInterface};
+
+use alloc::{collections::LinkedList, vec, vec::Vec};
+use spin::{Lazy, Mutex};
 
 pub struct EthDevice {
     tx: Box<dyn DataLinkSender>,
@@ -15,6 +20,8 @@ const DMAC_BEGIN: usize = 0;
 const DMAC_END: usize = 5;
 const ETH_TYPE_BEGIN: usize = 12;
 const ETH_TYPE_END: usize = 13;
+
+static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
 impl EthDevice {
     pub fn new() -> Self {
@@ -55,20 +62,22 @@ impl EthDevice {
     }
 
     pub fn recv(&mut self, buf: &mut [u8]) -> usize {
-        match self.rx.next() {
-            Ok(packet) => {
-                let min_len = core::cmp::min(buf.len(), packet.len());
-                buf[..min_len].copy_from_slice(&packet[..min_len]);
-                // port
-                if self.is_valid_packet(buf) {
-                    return min_len;
-                }
-            }
-            _ => {
-                return 0;
-            }
+        if let Some(block) = RECV_RING.lock().pop_back() {
+            let min_len = core::cmp::min(block.len(), buf.len());
+            buf[..min_len].copy_from_slice(&block[..min_len]);
+            return min_len;
         }
         0
+    }
+
+    pub fn async_recv(&mut self) {
+        if let Ok(packet) = self.rx.next() {
+            let mut buf = vec![0u8; packet.len()];
+            buf.copy_from_slice(&packet);
+            if self.is_valid_packet(&mut buf) {
+                RECV_RING.lock().push_back(buf);
+            }
+        }
     }
 
     pub fn send(&mut self, buf: &mut [u8]) {
