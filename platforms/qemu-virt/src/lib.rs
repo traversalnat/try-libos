@@ -7,6 +7,8 @@ mod e1000;
 mod pci;
 mod thread;
 mod timer;
+mod async_executor;
+
 extern crate alloc;
 
 use alloc::boxed::Box;
@@ -14,6 +16,9 @@ use kernel_context::LocalContext;
 pub use platform::Platform;
 use qemu_virt_ld as linker;
 pub use Virt as PlatformImpl;
+
+use async_executor::spawn as async_spawn;
+use async_executor::{async_yield, block_on, join};
 
 use alloc::format;
 use alloc::vec::Vec;

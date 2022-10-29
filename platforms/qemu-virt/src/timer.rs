@@ -75,7 +75,6 @@ pub fn get_time_ms() -> u128 {
 
 /// sleep current task
 pub fn sys_sleep(ms: u128) -> isize {
-    info!("sleep {ms} ms");
     let expire_ms = get_time_ms() + ms;
     let ctx = current_thread();
     move_timer(expire_ms, ctx);

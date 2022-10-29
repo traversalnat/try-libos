@@ -2,9 +2,9 @@
 members = [
     "xtask",
     "common/stdio",
+    "common/mem",
     "libs/time",
     "libs/net",
-    "common/mem",
     "libs/var_bitmap",
     "platforms/guest",
     "platforms/qemu-virt",

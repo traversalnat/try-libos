@@ -39,6 +39,8 @@ pub trait Platform {
     {
     }
 
+    fn sys_yield() {}
+
     fn wait(_delay: core::time::Duration) {}
 
     // mem: return the heap base and heap size
