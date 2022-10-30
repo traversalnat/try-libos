@@ -2,21 +2,18 @@ extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
     collections::LinkedList,
-    sync::Arc,
     vec,
     vec::Vec,
 };
 use core::alloc::Layout;
 use spin::{Lazy, Mutex};
-use stdio::*;
-
 use isomorphic_drivers::net::ethernet::intel::e1000::E1000;
 use isomorphic_drivers::net::ethernet::structs::EthernetAddress as DriverEthernetAddress;
 use isomorphic_drivers::provider;
 
 static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
-pub const E1000_IRQ: usize = 33;
+// pub const E1000_IRQ: usize = 33;
 
 pub struct Provider;
 
@@ -37,7 +34,7 @@ impl provider::Provider for Provider {
     }
 }
 
-pub static E1000Driver: Lazy<Mutex<Option<E1000<Provider>>>> = Lazy::new(|| Mutex::new(None));
+pub static E1000_DRIVER: Lazy<Mutex<Option<E1000<Provider>>>> = Lazy::new(|| Mutex::new(None));
 
 pub fn init(header: usize, size: usize) {
     let e1000 = E1000::new(
@@ -46,31 +43,17 @@ pub fn init(header: usize, size: usize) {
         DriverEthernetAddress::from_bytes(&crate::MACADDR),
     );
 
-    let mut lock = E1000Driver.lock();
+    let mut lock = E1000_DRIVER.lock();
     *lock = Some(e1000);
 }
 
-pub fn handle_interrupt() {
-    E1000Driver
-        .lock()
-        .as_mut()
-        .expect("E1000 Driver uninit")
-        .handle_interrupt();
-}
-
-pub fn sync_recv(buf: &mut [u8]) -> usize {
-    if let Some(block) = E1000Driver
-        .lock()
-        .as_mut()
-        .expect("E1000 Driver uninit")
-        .receive()
-    {
-        let len = core::cmp::min(buf.len(), block.len());
-        buf[..len].copy_from_slice(&block[..len]);
-        return len;
-    }
-    0
-}
+// pub fn handle_interrupt() {
+//     E1000Driver
+//         .lock()
+//         .as_mut()
+//         .expect("E1000 Driver uninit")
+//         .handle_interrupt();
+// }
 
 pub fn recv(buf: &mut [u8]) -> usize {
     if let Some(block) = RECV_RING.lock().pop_front() {
@@ -86,7 +69,7 @@ pub fn async_recv() {
         return;
     }
 
-    if let Some(block) = E1000Driver
+    if let Some(block) = E1000_DRIVER
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")
@@ -99,7 +82,7 @@ pub fn async_recv() {
 }
 
 pub fn can_send() -> bool {
-    E1000Driver
+    E1000_DRIVER
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")
@@ -112,7 +95,7 @@ pub fn can_recv() -> bool {
 }
 
 pub fn send(buf: &[u8]) {
-    E1000Driver
+    E1000_DRIVER
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")

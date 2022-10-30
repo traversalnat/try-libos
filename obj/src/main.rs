@@ -1,14 +1,12 @@
 #![no_std]
 #![no_main]
+#![allow(unused)]
 
 extern crate alloc;
 
-use core::{time::Duration};
+use core::time::Duration;
 
-use net::Instant;
 use platform::{Platform, PlatformImpl, MACADDR};
-use alloc::{vec, vec::Vec};
-use stdio::log::info;
 
 #[no_mangle]
 fn obj_main() {

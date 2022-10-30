@@ -3,6 +3,7 @@ members = [
     "xtask",
     "common/stdio",
     "common/mem",
+    "common/executor",
     "libs/time",
     "libs/net",
     "libs/var_bitmap",

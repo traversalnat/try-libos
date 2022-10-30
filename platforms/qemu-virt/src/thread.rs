@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 extern crate alloc;
 
 use alloc::{
@@ -5,7 +7,6 @@ use alloc::{
     boxed::Box,
     collections::LinkedList,
     sync::Arc,
-    vec,
     vec::Vec,
 };
 use core::alloc::Layout;
@@ -33,7 +34,7 @@ pub fn move_run(ctx: Arc<Mutex<TaskControlBlock>>) {
 /// 返回当前 thread
 /// 由于 ctx.lock().excute() 执行当前线程会锁住 ctx, 这里强制 unlock
 pub fn current_thread() -> Arc<Mutex<TaskControlBlock>> {
-    let mut lock = CURRENT.lock();
+    let lock = CURRENT.lock();
     unsafe {
         (*lock).force_unlock();
     }
@@ -149,7 +150,7 @@ where
 {
     fn run(&mut self) {
         let closure = self.closure.take().expect("you can't run a thread twice!");
-        let ret = (closure)();
+        (closure)();
         self.tcb.lock().status = TaskStatus::Finish;
     }
 }
@@ -179,7 +180,7 @@ where
 
     let t = Arc::new(Mutex::new(t));
 
-    let mut runner = ThreadRunner {
+    let runner = ThreadRunner {
         tcb: t.clone(),
         closure: Some(f),
     };

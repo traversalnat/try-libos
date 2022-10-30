@@ -1,4 +1,3 @@
-use stdio::*;
 use stdio::log;
 use volatile::Volatile;
 
@@ -21,9 +20,7 @@ pub fn pci_init() {
             // e1000 register address
             base[4].write(0x40000000);
 
-            unsafe {
-                crate::e1000::init(0x40000000, 0x10000 * 4);
-            }
+            crate::e1000::init(0x40000000, 0x10000 * 4);
             break;
         }
     }

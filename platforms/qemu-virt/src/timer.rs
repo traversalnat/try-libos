@@ -1,12 +1,11 @@
+#![allow(unused)]
+
 extern crate alloc;
 use crate::thread::*;
 use alloc::{
     sync::Arc,
-    vec,
-    vec::Vec,
     collections::BinaryHeap,
 };
-use stdio::log::info;
 use core::cmp::Ordering;
 use spin::{Lazy, Mutex};
 use riscv::register::*;

@@ -7,36 +7,22 @@ mod e1000;
 mod pci;
 mod thread;
 mod timer;
-mod async_executor;
+mod virt;
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-use kernel_context::LocalContext;
-pub use platform::Platform;
 use qemu_virt_ld as linker;
-pub use Virt as PlatformImpl;
 
-use async_executor::spawn as async_spawn;
-use async_executor::{async_yield, block_on, join};
-
-use alloc::format;
-use alloc::vec::Vec;
-use alloc::{collections::LinkedList, sync::Arc, vec};
-use core::fmt::Arguments;
-use core::time::Duration;
 use riscv::register::*;
 use sbi_rt::*;
-use spin::{Mutex, Once};
-use stdio::log::info;
-use stdio::*;
 use thread::*;
 use timer::*;
 use uart_16550::MmioSerialPort;
+use stdio::log;
 
-pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
-// 物理内存容量
-const MEMORY: usize = 24 << 20;
+pub use platform::Platform;
+use virt::Virt;
+pub use virt::{Virt as PlatformImpl, MACADDR};
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -57,13 +43,13 @@ extern "C" fn rust_main() -> ! {
     let (heap_base, heap_size) = Virt::heap();
     mem::init_heap(heap_base, heap_size);
 
-    unsafe {
-        UART0.call_once(|| (unsafe { MmioSerialPort::new(0x1000_0000) }));
-    }
+    virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
     // stdio
     stdio::set_log_level(option_env!("LOG"));
-    stdio::init(&Stdio);
+    stdio::init(&virt::Stdio);
+
+    executor::init(&virt::Executor);
 
     pci::pci_init();
     log::info!("init kthread");
@@ -91,115 +77,6 @@ extern "C" fn rust_main() -> ! {
     unreachable!()
 }
 
-pub struct Virt;
-
-// unsafe: 暂时未找到使用 Mutex 很好的办法
-// 1. 自定义 Mutex, 在 lock 失败时让出 CPU
-// 2. 使用 try_lock, lock 失败让出 CPU
-static mut UART0: Once<MmioSerialPort> = Once::new();
-
-impl platform::Platform for Virt {
-    #[inline]
-    fn console_getchar() -> u8 {
-        unsafe { UART0.get_mut().unwrap().receive() }
-    }
-
-    #[inline]
-    fn console_putchar(c: u8) {
-        unsafe {
-            UART0.get_mut().unwrap().send(c);
-        }
-    }
-
-    #[inline]
-    fn net_receive(buf: &mut [u8]) -> usize {
-        e1000::recv(buf)
-    }
-
-    #[inline]
-    fn net_transmit(buf: &mut [u8]) {
-        e1000::send(buf);
-    }
-
-    #[inline]
-    fn net_can_send() -> bool {
-        e1000::can_send()
-    }
-
-    #[inline]
-    fn net_can_recv() -> bool {
-        e1000::can_recv()
-    }
-
-    #[inline]
-    fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
-    where
-        F: 'static + FnMut() + Send + Sync,
-    {
-        Self::spawn(move || loop {
-            _cb();
-            Self::wait(_delay);
-        });
-    }
-
-    // thread
-    #[inline]
-    fn spawn<F>(f: F)
-    where
-        F: FnOnce() + Send + 'static,
-    {
-        thread::spawn(f);
-    }
-
-    #[inline]
-    fn wait(_delay: core::time::Duration) {
-        sys_sleep(_delay.as_millis() as _);
-    }
-
-    #[inline]
-    fn heap() -> (usize, usize) {
-        let layout = linker::KernelLayout::locate();
-        (layout.end(), MEMORY - layout.len())
-    }
-
-    #[inline]
-    fn frequency() -> usize {
-        timer::CLOCK_FREQ
-    }
-
-    #[inline]
-    fn rdtime() -> usize {
-        riscv::register::time::read()
-    }
-
-    #[inline]
-    fn shutdown(error: bool) {
-        if error {
-            system_reset(Shutdown, SystemFailure);
-        } else {
-            system_reset(Shutdown, NoReason);
-        }
-    }
-}
-
-struct Stdio;
-impl stdio::Stdio for Stdio {
-    #[inline]
-    fn put_char(&self, c: u8) {
-        Virt::console_putchar(c);
-    }
-
-    #[inline]
-    fn put_str(&self, s: &str) {
-        Virt::console_put_str(s);
-    }
-
-    #[inline]
-    fn get_char(&self) -> u8 {
-        Virt::console_getchar()
-    }
-}
-
 extern "C" fn schedule() -> ! {
     use TaskStatus::*;
     unsafe {
@@ -217,7 +94,7 @@ extern "C" fn schedule() -> ! {
                 ctx.lock().execute();
             }
 
-            use scause::{Exception, Interrupt, Trap};
+            use scause::{Interrupt, Trap};
             let finish = match scause::read().cause() {
                 Trap::Interrupt(Interrupt::SupervisorTimer) => {
                     set_timer(u64::MAX);
