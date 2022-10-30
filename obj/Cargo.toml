@@ -5,16 +5,16 @@ edition = "2021"
 
 [dependencies]
 app = { path = "../apps/async_echo", package = "async_echo" }
-platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
+platform = { path = "../platforms/guest", package = "guest" }
 stdio = { path = "../common/stdio" }
 executor = { path = "../common/executor" }
 net = { path = "../libs/net" }
-mem = { path = "../common/mem", features = [] }
+mem = { path = "../common/mem", features = ["std"] }
 
 [build-dependencies]
-linker = { path = "../platforms/qemu-virt-ld", package = "qemu-virt-ld" }
+linker = { path = "../platforms/guest-ld", package = "guest-ld" }
 
 [features]
-default = []
+default = ["std"]
 std = []
 

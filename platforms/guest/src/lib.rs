@@ -10,6 +10,7 @@ pub use eth::MACADDR;
 pub use platform::Platform;
 use std::process::exit;
 use stdio;
+use executor;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -23,6 +24,8 @@ fn main() {
     // stdio
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&Stdio);
+
+    executor::init(&basic::Executor);
 
     PlatformImpl::schedule_with_delay(Duration::from_millis(10), || {
         ETH_DEVICE.lock().async_recv();

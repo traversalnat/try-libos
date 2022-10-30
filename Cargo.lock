@@ -593,6 +593,7 @@ dependencies = [
  "async-std",
  "bimap",
  "chrono",
+ "executor",
  "lazy_static",
  "platform",
  "pnet",
@@ -602,6 +603,10 @@ dependencies = [
  "stdio",
  "timer",
 ]
+
+[[package]]
+name = "guest-ld"
+version = "0.1.0"
 
 [[package]]
 name = "heck"
@@ -821,10 +826,10 @@ version = "0.1.0"
 dependencies = [
  "async_echo",
  "executor",
+ "guest",
+ "guest-ld",
  "mem",
  "net",
- "qemu-virt",
- "qemu-virt-ld",
  "stdio",
 ]
 

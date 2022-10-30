@@ -107,3 +107,13 @@ impl platform::Platform for MacOS {
         }
     }
 }
+
+pub struct Executor;
+impl executor::Executor for Executor {
+    fn sys_cpus(&self) -> usize {
+        1
+    }
+
+    fn sys_yield(&self) {
+    }
+}
