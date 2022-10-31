@@ -5,8 +5,10 @@
 extern crate alloc;
 
 use core::time::Duration;
+use alloc::boxed::Box;
 
 use platform::{Platform, PlatformImpl, MACADDR};
+use stdio::log::info;
 
 #[no_mangle]
 fn obj_main() {
@@ -14,6 +16,12 @@ fn obj_main() {
     init_ethernet();
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
+
+    thread::init(&ThreadImpl);
+    let hello = 2000u32;
+    thread::spawn(move || {
+        info!("hello {}", hello);
+    });
 }
 
 fn init_ethernet() {
@@ -50,5 +58,17 @@ impl net::PhyNet for PhyNet {
 
     fn can_recv(&self) -> bool {
         PlatformImpl::net_can_recv()
+    }
+}
+
+struct ThreadImpl;
+
+impl thread::Thread for ThreadImpl {
+    fn spawn(&self, f: Box<dyn FnOnce() + Send>) {
+        PlatformImpl::spawn(f);
+    }
+
+    fn yields(&self) {
+        PlatformImpl::sys_yield();
     }
 }

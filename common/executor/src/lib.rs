@@ -3,6 +3,7 @@ extern crate alloc;
 
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
+use alloc::boxed::Box;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -17,6 +18,8 @@ pub trait Executor: Sync + Send {
     fn sys_cpus(&self) -> usize {
         1
     }
+
+    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>);
 
     fn sys_yield(&self);
 }
@@ -69,6 +72,20 @@ static RUNTIME: Lazy<Mutex<Runtime>> = Lazy::new(|| {
     let runtime = Runtime {
         task_queue: Arc::new(Mutex::new(LinkedList::new())),
     };
+
+    assert!(EXECUTOR.wait().sys_cpus() >= 1);
+
+    for _ in 0..=EXECUTOR.wait().sys_cpus() {
+        EXECUTOR.wait().sys_spawn(Box::new(|| {
+            loop {
+                let task = match RUNTIME.lock().pop_front() {
+                    Some(t) => t,
+                    _ => continue,
+                };
+                task.run();
+            }
+        }));
+    }
 
     Mutex::new(runtime)
 });
@@ -133,11 +150,5 @@ pub fn block_on<F: Future>(mut future: F) -> F::Output {
                 EXECUTOR.wait().sys_yield();
             }
         };
-
-        let task = match RUNTIME.lock().pop_front() {
-            Some(t) => t,
-            _ => continue,
-        };
-        task.run();
     }
 }

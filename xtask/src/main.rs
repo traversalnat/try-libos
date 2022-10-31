@@ -86,6 +86,7 @@ app = {{ path = \"../apps/{0}\", package = \"{0}\" }}
 platform = {{ path = \"../platforms/{1}\", package = \"{1}\" }}
 stdio = {{ path = \"../common/stdio\" }}
 executor = {{ path = \"../common/executor\" }}
+thread = {{ path = \"../libs/thread\" }}
 net = {{ path = \"../libs/net\" }}
 mem = {{ path = \"../common/mem\", features = [{2}] }}
 

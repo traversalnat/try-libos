@@ -4,6 +4,7 @@ members = [
     "common/stdio",
     "common/mem",
     "common/executor",
+    "libs/thread",
     "libs/time",
     "libs/net",
     "libs/var_bitmap",

@@ -1,6 +1,9 @@
+extern crate alloc;
+
 use crate::e1000;
 use crate::thread;
 use crate::timer;
+use alloc::boxed::Box;
 use platform::Platform;
 use qemu_virt_ld as linker;
 use sbi_rt::*;
@@ -131,6 +134,10 @@ pub struct Executor;
 impl executor::Executor for Executor {
     fn sys_cpus(&self) -> usize {
         1
+    }
+
+    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>) {
+        Virt::spawn(f);
     }
 
     fn sys_yield(&self) {
