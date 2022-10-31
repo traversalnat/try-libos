@@ -9,7 +9,8 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use spin::{Lazy, Mutex, Once};
 
-pub use futures::join;
+pub use futures;
+pub use futures::{join, future::poll_fn};
 
 use stdio::log::info;
 
