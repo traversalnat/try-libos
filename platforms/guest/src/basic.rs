@@ -115,5 +115,6 @@ impl executor::Executor for Executor {
     }
 
     fn sys_yield(&self) {
+        thread::yield_now();
     }
 }
