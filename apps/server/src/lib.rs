@@ -1,36 +1,34 @@
 #![no_std]
 
+mod net_io;
+
 use alloc::{borrow::ToOwned, string::String, vec};
 use mem::*;
 use net::*;
 use stdio::*;
+use executor::{spawn, join, block_on};
+use net_io::{async_recv, async_send};
 
 pub fn app_main() {
     let sender = sys_sock_create();
-    // TODO: 目前只能接受一个连接，另一个连接在接入时系统会崩溃
     sys_sock_listen(sender, 6000);
     println!("listening");
 
     unsafe {
-        let mut rx = vec![0; 1024];
-
         loop {
-            println!("read status");
-            while !sys_sock_status(sender).can_recv {}
-            println!("recving");
-            let mut recv_size = 0;
-            if let Some(size) = sys_sock_recv(sender, rx.as_mut_slice()) {
-                println!("receive {size} words");
-                recv_size = size;
-            }
+            let handle = spawn(async move {
+                let mut rx = vec![0; 1024];
+                let mut recv_size = 0;
+                if let Some(size) = async_recv(sender, rx.as_mut_slice()).await {
+                    println!("receive {size} words");
+                    recv_size = size;
+                }
+                if let Some(size) = async_send(sender, &mut rx[..recv_size]).await {
+                    println!("send {size} words");
+                }
+            });
 
-            while !sys_sock_status(sender).can_send {}
-            println!("sending");
-            if let Some(size) = sys_sock_send(sender, &mut rx[..recv_size]) {
-                println!("send {size} words");
-            }
+            block_on(handle);
         }
-
-        sys_sock_close(sender);
     };
 }

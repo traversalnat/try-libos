@@ -132,14 +132,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a40729d2133846d9ed0ea60a8b9541bccddab49cd30f0715a1da672fe9a2524"
 
 [[package]]
-name = "async_echo"
-version = "0.1.0"
-dependencies = [
- "executor",
- "stdio",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -820,12 +812,12 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "async_echo",
  "executor",
  "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
+ "server",
  "stdio",
  "thread",
 ]
@@ -1174,6 +1166,7 @@ checksum = "d193d69bae983fc11a79df82342761dfbf28a99fc8d203dca4c3c1b590948965"
 name = "server"
 version = "0.1.0"
 dependencies = [
+ "executor",
  "mem",
  "net",
  "stdio",
