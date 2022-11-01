@@ -61,17 +61,6 @@ impl platform::Platform for Virt {
         e1000::can_recv()
     }
 
-    #[inline]
-    fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
-    where
-        F: 'static + FnMut() + Send + Sync,
-    {
-        Self::spawn(move || loop {
-            _cb();
-            Self::wait(_delay);
-        });
-    }
-
     // thread
     #[inline]
     fn spawn<F>(f: F)

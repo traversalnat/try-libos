@@ -25,13 +25,6 @@ pub trait Platform {
         true
     }
 
-    // timer:
-    fn schedule_with_delay<F>(_delay: core::time::Duration, mut _cb: F)
-    where
-        F: 'static + FnMut() + Send + Sync,
-    {
-    }
-
     // thread
     fn spawn<F>(_f: F)
     where

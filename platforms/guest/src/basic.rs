@@ -55,18 +55,6 @@ impl platform::Platform for MacOS {
         eth.send(buf);
     }
 
-    #[inline]
-    fn schedule_with_delay<F>(_delay: Duration, mut cb: F)
-    where
-        F: 'static + FnMut() + Send + Sync,
-    {
-        thread::spawn(move || loop {
-            thread::sleep(_delay);
-            cb();
-            thread::yield_now();
-        });
-    }
-
     // thread
     #[inline]
     fn spawn<F>(f: F)

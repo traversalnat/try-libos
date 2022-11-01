@@ -27,9 +27,13 @@ fn obj_main() {
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    PlatformImpl::schedule_with_delay(Duration::from_millis(100), move || {
-        let val = PlatformImpl::rdtime() as i64;
-        net::ETHERNET.poll(net::Instant::from_millis(val));
+    PlatformImpl::spawn(|| {
+        loop {
+            let val = PlatformImpl::rdtime() as i64;
+            net::ETHERNET.poll(net::Instant::from_millis(val));
+            let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
+            PlatformImpl::wait(delay.into());
+        }
     });
 }
 

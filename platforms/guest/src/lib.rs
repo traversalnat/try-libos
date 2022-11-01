@@ -27,8 +27,9 @@ fn main() {
 
     executor::init(&basic::Executor);
 
-    PlatformImpl::schedule_with_delay(Duration::from_millis(10), || {
+    PlatformImpl::spawn(|| {
         ETH_DEVICE.lock().async_recv();
+        PlatformImpl::wait(Duration::from_millis(100));
     });
 
     obj_main();
