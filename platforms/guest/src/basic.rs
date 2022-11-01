@@ -9,6 +9,7 @@ use std::{
 use core::time::Duration;
 use crate::eth::EthDevice;
 use chrono::Local;
+use platform::Platform;
 use spin::Mutex;
 use lazy_static::*;
 
@@ -112,6 +113,10 @@ pub struct Executor;
 impl executor::Executor for Executor {
     fn sys_cpus(&self) -> usize {
         1
+    }
+
+    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>) {
+        MacOS::spawn(f);
     }
 
     fn sys_yield(&self) {
