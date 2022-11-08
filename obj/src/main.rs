@@ -14,14 +14,9 @@ use stdio::log::info;
 fn obj_main() {
     // 连接 platform 和 libs
     init_ethernet();
+    thread::init(&ThreadImpl);
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
-
-    thread::init(&ThreadImpl);
-    let hello = 2000u32;
-    thread::spawn(move || {
-        info!("hello {}", hello);
-    });
 }
 
 fn init_ethernet() {
@@ -31,8 +26,8 @@ fn init_ethernet() {
         loop {
             let val = PlatformImpl::rdtime() as i64;
             net::ETHERNET.poll(net::Instant::from_millis(val));
-            let delay = net::ETHERNET.poll_delay(net::Instant::from_millis(val));
-            PlatformImpl::wait(delay.into());
+            let delay = Duration::from_millis(100);
+            PlatformImpl::wait(delay);
         }
     });
 }

@@ -8,7 +8,7 @@ pub fn pci_init() {
         let base = unsafe { core::slice::from_raw_parts_mut(base_addr as *mut Volatile<u32>, 10) };
 
         let id = base[0].read();
-        // virtio-net-device
+        // e1000
         if id == 0x100e8086 {
             log::info!("{id:x} found e1000");
             base[1].write(7);

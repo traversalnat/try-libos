@@ -4,18 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/client", package = "client" }
-platform = { path = "../platforms/guest", package = "guest" }
+app = { path = "../apps/async_echo", package = "async_echo" }
+platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
 stdio = { path = "../common/stdio" }
 executor = { path = "../common/executor" }
 thread = { path = "../libs/thread" }
 net = { path = "../libs/net" }
-mem = { path = "../common/mem", features = ["std"] }
+mem = { path = "../common/mem", features = [] }
 
 [build-dependencies]
-linker = { path = "../platforms/guest-ld", package = "guest-ld" }
+linker = { path = "../platforms/qemu-virt-ld", package = "qemu-virt-ld" }
 
 [features]
-default = ["std"]
+default = []
 std = []
 

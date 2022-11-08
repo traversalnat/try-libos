@@ -132,6 +132,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a40729d2133846d9ed0ea60a8b9541bccddab49cd30f0715a1da672fe9a2524"
 
 [[package]]
+name = "async_echo"
+version = "0.1.0"
+dependencies = [
+ "executor",
+ "spin 0.9.4",
+ "stdio",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -597,10 +606,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "guest-ld"
-version = "0.1.0"
-
-[[package]]
 name = "heck"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -816,12 +821,12 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "client",
+ "async_echo",
  "executor",
- "guest",
- "guest-ld",
  "mem",
  "net",
+ "qemu-virt",
+ "qemu-virt-ld",
  "stdio",
  "thread",
 ]
@@ -1173,7 +1178,9 @@ dependencies = [
  "executor",
  "mem",
  "net",
+ "spin 0.9.4",
  "stdio",
+ "thread",
 ]
 
 [[package]]

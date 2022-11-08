@@ -3,6 +3,18 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 
 use net::*;
+use stdio::log::info;
+
+pub fn async_accept_poll(cx: &mut Context<'_>, mut listener: TcpListener) -> Poll<SocketHandle> {
+    match listener.accept() {
+        Some(handle) => Poll::Ready(handle),
+        _ => Poll::Pending,
+    }
+}
+
+pub async fn async_accept(mut listener: TcpListener) -> SocketHandle {
+    poll_fn(|cx| async_accept_poll(cx, listener)).await
+}
 
 pub fn async_recv_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Option<usize>> {
     if sys_sock_status(sock).can_recv {

@@ -1,6 +1,7 @@
 #![no_std]
 
 mod ethernet;
+mod socket;
 
 use core::result::Result;
 pub use ethernet::Duration;
@@ -8,6 +9,7 @@ use ethernet::GlobalEthernetDriver;
 pub use ethernet::Instant;
 pub use ethernet::SocketHandle;
 pub use smoltcp::wire::{IpAddress, IpEndpoint};
+pub use socket::TcpListener;
 use spin::Once;
 
 /// 这个接口定义了网络物理层receive, transmit
@@ -61,15 +63,10 @@ pub fn sys_sock_connect(
     }
 }
 
-pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Result<(), smoltcp::Error> {
-    if let Some(port) = ETHERNET.mark_port(local_port) {
-        ETHERNET.with_socket(sock, |socket| socket.listen(port))
-    } else {
-        Err(smoltcp::Error::NotSupported)
-    }
+pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> TcpListener {
+    TcpListener::new(sock, local_port)
 }
 
-// -> Result<usize, smoltcp::Error>
 pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     ETHERNET.with_socket(sock, |socket| {
         if socket.can_send() {
