@@ -96,7 +96,6 @@ linker = {{ path = \"../platforms/{1}-ld\", package = \"{1}-ld\" }}
 [features]
 default = [{2}]
 std = []
-
 ",
                 self.app,
                 self.plat,

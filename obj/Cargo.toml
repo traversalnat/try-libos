@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/server", package = "server" }
+app = { path = "../apps/async_echo", package = "async_echo" }
 platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
 stdio = { path = "../common/stdio" }
 executor = { path = "../common/executor" }
@@ -18,4 +18,3 @@ linker = { path = "../platforms/qemu-virt-ld", package = "qemu-virt-ld" }
 [features]
 default = []
 std = []
-

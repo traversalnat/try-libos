@@ -5,9 +5,8 @@ extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
-    collections::LinkedList,
-    fmt,
-    format,
+    collections::linked_list::LinkedList,
+    fmt, format,
     sync::Arc,
     vec::Vec,
 };
@@ -17,35 +16,61 @@ use spin::{Lazy, Mutex};
 
 const STACK_SIZE: usize = 0x8000;
 
-/// 正在运行的线程
-pub static RUN_THREADS: Lazy<Mutex<LinkedList<Arc<Mutex<TaskControlBlock>>>>> =
-    Lazy::new(|| Mutex::new(LinkedList::new()));
+type TCBlock = Arc<Mutex<TaskControlBlock>>;
 
-/// 所有的线程
-pub static THREADS: Lazy<Mutex<Vec<Arc<Mutex<TaskControlBlock>>>>> =
-    Lazy::new(|| Mutex::new(Vec::new()));
+pub struct Threads {
+    run_threads: Mutex<LinkedList<TCBlock>>,
+    current: Mutex<TCBlock>,
+}
 
-pub(crate) static CURRENT: Lazy<Mutex<Arc<Mutex<TaskControlBlock>>>> =
-    Lazy::new(|| Mutex::new(Arc::new(Mutex::new(TaskControlBlock::ZERO))));
+impl Threads {
+    pub fn new() -> Self {
+        Threads {
+            run_threads: Mutex::new(LinkedList::new()),
+            current: Mutex::new(Arc::new(Mutex::new(TaskControlBlock::ZERO))),
+        }
+    }
 
-pub fn move_run(ctx: Arc<Mutex<TaskControlBlock>>) {
+    pub fn current(&self) -> TCBlock {
+        (*self.current.lock()).clone()
+    }
+
+    pub fn set_current(&self, ctx: TCBlock) {
+        *(self.current.lock()) = ctx;
+    }
+
+    pub fn pop_run(&self) -> Option<TCBlock> {
+        let ctx = self.run_threads.lock().pop_front();
+        if ctx.is_some() {
+            let ctx = ctx.unwrap();
+            self.set_current(Arc::clone(&ctx));
+            return Some(ctx);
+        }
+        None
+    }
+
+    pub fn push_run(&self, tcx: TCBlock) {
+        self.run_threads.lock().push_back(tcx);
+    }
+}
+
+pub static THREADS: Lazy<Threads> = Lazy::new(|| Threads::new());
+
+pub fn move_run(ctx: TCBlock) {
     ctx.lock().status = TaskStatus::Ready;
-    RUN_THREADS.lock().push_back(ctx);
+    THREADS.push_run(ctx);
 }
 
 /// 返回当前 thread
 /// 由于 ctx.lock().excute() 执行当前线程会锁住 ctx, 这里强制 unlock
-pub fn current_thread() -> Arc<Mutex<TaskControlBlock>> {
-    let lock = CURRENT.lock();
-    unsafe {
-        (*lock).force_unlock();
+pub fn current_thread() -> TCBlock {
+    let lock = THREADS.current();
+    if lock.is_locked() {
+        unsafe {
+            lock.force_unlock();
+        }
     }
-    (*lock).clone()
-}
-
-pub fn set_current_thread(ctx: Arc<Mutex<TaskControlBlock>>) {
-    let mut lock = CURRENT.lock();
-    *lock = ctx;
+    lock
 }
 
 /// 线程状态
@@ -151,7 +176,7 @@ struct ThreadRunner<F>
 where
     F: FnOnce() + Send + 'static,
 {
-    tcb: Arc<Mutex<TaskControlBlock>>,
+    tcb: TCBlock,
     closure: Option<F>,
 }
 pub trait ThreadRun {
@@ -204,6 +229,5 @@ where
 
     t.lock().init_with_arg(run_boxed_thread as usize, arg);
 
-    THREADS.lock().push(t.clone());
-    RUN_THREADS.lock().push_back(t.clone());
+    THREADS.push_run(t.clone());
 }

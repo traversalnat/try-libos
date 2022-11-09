@@ -15,10 +15,10 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
+use stdio::log::{self, info};
 use thread::*;
 use timer::*;
 use uart_16550::MmioSerialPort;
-use stdio::log::{self, info};
 
 pub use platform::Platform;
 use virt::Virt;
@@ -54,7 +54,9 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    Virt::spawn(obj_main);
+    Virt::spawn(|| {
+        obj_main();
+    });
 
     // idle thread
     Virt::spawn(|| loop {
@@ -77,22 +79,14 @@ extern "C" fn rust_main() -> ! {
     unreachable!()
 }
 
-fn RUN_THREADS_LEN() -> usize {
-    RUN_THREADS.lock().len()
-}
-
 extern "C" fn schedule() -> ! {
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
     }
-    while RUN_THREADS_LEN() != 0 {
-        info!("pop");
-        let ctx = RUN_THREADS.lock().pop_front().unwrap();
+    while let Some(ctx) = THREADS.pop_run() {
         info!("{}", ctx.lock().stack);
         set_timer(Virt::rdtime() as u64 + 12500);
-        // 设置当前线程
-        set_current_thread(ctx.clone());
         // 设置当前线程状态
         ctx.lock().status = Running;
         unsafe {
@@ -113,10 +107,10 @@ extern "C" fn schedule() -> ! {
             ctx.lock().status = Finish;
         }
 
-        let stack = ctx.lock().stack;
+        let status = ctx.lock().status.clone();
 
-        if ctx.lock().status == Running {
-            RUN_THREADS.lock().push_back(ctx);
+        if status == Running {
+            THREADS.push_run(ctx);
         }
     }
     log::info!("Shutdown\n");
