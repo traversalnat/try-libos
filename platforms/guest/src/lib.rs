@@ -9,7 +9,7 @@ use core::time::Duration;
 pub use eth::MACADDR;
 pub use platform::Platform;
 use std::process::exit;
-use stdio;
+use stdio::{self, log::info};
 use executor;
 
 #[linkage = "weak"]
@@ -28,8 +28,10 @@ fn main() {
     executor::init(&basic::Executor);
 
     PlatformImpl::spawn(|| {
-        ETH_DEVICE.lock().async_recv();
-        PlatformImpl::wait(Duration::from_millis(100));
+        loop {
+            ETH_DEVICE.lock().async_recv();
+            PlatformImpl::wait(Duration::from_millis(100));
+        }
     });
 
     obj_main();

@@ -1,4 +1,4 @@
-use mem::alloc;
+extern crate alloc;
 
 use alloc::collections::BTreeMap;
 use alloc::vec;
@@ -118,12 +118,14 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    // let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
-    let ip_addrs = [IpCidr::new(Ipv4Address::new(10, 0, 2, 15).into(), 16)];
-    let default_route = Ipv4Address::new(10, 0, 2, 2);
+    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+    // let ip_addrs = [IpCidr::new(Ipv4Address::new(10, 0, 2, 15).into(), 16)];
+    // let ip_addrs = [IpCidr::new(Ipv4Address::new(192, 168, 1, 114).into(), 24)];
+    // let default_route = Ipv4Address::new(10, 0, 2, 2);
+    // let default_route = Ipv4Address::new(192, 168, 1, 1);
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
     let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
-    routes.add_default_ipv4_route(default_route);
+    // routes.add_default_ipv4_route(default_route);
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
@@ -139,20 +141,20 @@ pub struct EthernetDriver {
     /// Internal ethernet interface
     ethernet: Interface<NetDevice>,
     // /// Internal dhcp socket
-    // dhcp: SocketHandle,
+    dhcp: SocketHandle,
 }
 
 impl EthernetDriver {
     /// Creates a fresh ethernet driver.
     fn new(macaddr: &[u8; 6]) -> EthernetDriver {
-        // let dhcp = Dhcpv4Socket::new();
+        let dhcp = Dhcpv4Socket::new();
         let mut ethernet = create_interface(&macaddr);
-        // let dhcp = ethernet.add_socket(dhcp);
+        let dhcp = ethernet.add_socket(dhcp);
 
         EthernetDriver {
             port_map: Bitmap::with_size(PORTS_NUM),
             ethernet,
-            // dhcp,
+            dhcp,
         }
     }
 
@@ -170,22 +172,22 @@ impl EthernetDriver {
     fn poll(&mut self, timestamp: Instant) {
         self.ethernet.poll(timestamp);
         // poll dhcp to get ip addr and route gateway
-        // let dhcp = self.ethernet.get_socket::<Dhcpv4Socket>(self.dhcp);
-        // match dhcp.poll() {
-        //     Some(Dhcpv4Event::Configured(config)) => {
-        //         self.set_ipv4_addr(config.address);
-        //         if let Some(router) = config.router {
-        //             self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
-        //         } else {
-        //             self.ethernet.routes_mut().remove_default_ipv4_route();
-        //         }
-        //     },
-        //     Some(Dhcpv4Event::Deconfigured) => {
-        //         self.set_ipv4_addr(Ipv4Cidr::new(Ipv4Address::UNSPECIFIED, 0));
-        //         self.ethernet.routes_mut().remove_default_ipv4_route();
-        //     },
-        //     _ => {}
-        // }
+        let dhcp = self.ethernet.get_socket::<Dhcpv4Socket>(self.dhcp);
+        match dhcp.poll() {
+            Some(Dhcpv4Event::Configured(config)) => {
+                self.set_ipv4_addr(config.address);
+                if let Some(router) = config.router {
+                    self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
+                } else {
+                    self.ethernet.routes_mut().remove_default_ipv4_route();
+                }
+            },
+            Some(Dhcpv4Event::Deconfigured) => {
+                self.set_ipv4_addr(Ipv4Cidr::new(Ipv4Address::UNSPECIFIED, 0));
+                self.ethernet.routes_mut().remove_default_ipv4_route();
+            },
+            _ => {}
+        }
     }
 
     /// Returns an advisory wait time to call `poll()` the next time.

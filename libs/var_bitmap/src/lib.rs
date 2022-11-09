@@ -1,6 +1,6 @@
 #![no_std]
 
-use mem::alloc;
+extern crate alloc;
 use alloc::vec::Vec;
 
 // the no_std version of var-bitmap v0.1.0

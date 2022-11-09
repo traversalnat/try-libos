@@ -9,7 +9,7 @@ use buddy_system_allocator::LockedHeap;
 #[cfg(not(feature = "std"))]
 #[global_allocator]
 /// heap allocator instance
-static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+static HEAP_ALLOCATOR: LockedHeap<32> = LockedHeap::empty();
 
 #[cfg(not(feature = "std"))]
 #[alloc_error_handler]
