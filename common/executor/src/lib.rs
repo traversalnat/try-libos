@@ -6,11 +6,11 @@ mod utils;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
-use stdio::log::info;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use spin::{Lazy, Mutex, Once};
+use stdio::log::info;
 
 pub use futures;
 pub use futures::{future::poll_fn, join};
@@ -76,8 +76,10 @@ impl Runner {
     }
 
     // one thread executor
-    pub fn block_on<F>(&self, future: F) 
-    where F: Future<Output = ()> + Send + 'static {
+    pub fn block_on<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         let waker = async_task::waker_fn(|| {});
 
         let mut cx = Context::from_waker(&waker);

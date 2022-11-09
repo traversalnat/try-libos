@@ -18,7 +18,7 @@ use sbi_rt::*;
 use thread::*;
 use timer::*;
 use uart_16550::MmioSerialPort;
-use stdio::log;
+use stdio::log::{self, info};
 
 pub use platform::Platform;
 use virt::Virt;
@@ -77,38 +77,44 @@ extern "C" fn rust_main() -> ! {
     unreachable!()
 }
 
+fn RUN_THREADS_LEN() -> usize {
+    RUN_THREADS.lock().len()
+}
+
 extern "C" fn schedule() -> ! {
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
     }
-    while !RUN_THREADS.lock().is_empty() {
+    while RUN_THREADS_LEN() != 0 {
+        info!("pop");
         let ctx = RUN_THREADS.lock().pop_front().unwrap();
+        info!("{}", ctx.lock().stack);
         set_timer(Virt::rdtime() as u64 + 12500);
-        loop {
-            // 设置当前线程
-            set_current_thread(ctx.clone());
-            // 设置当前线程状态
-            ctx.lock().status = Running;
-            unsafe {
-                ctx.lock().execute();
-            }
-
-            use scause::{Interrupt, Trap};
-            let finish = match scause::read().cause() {
-                Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                    set_timer(u64::MAX);
-                    check_timer(); // 检查到时线程
-                    false
-                }
-                _ => true,
-            };
-
-            if finish {
-                ctx.lock().status = Finish;
-            }
-            break;
+        // 设置当前线程
+        set_current_thread(ctx.clone());
+        // 设置当前线程状态
+        ctx.lock().status = Running;
+        unsafe {
+            ctx.lock().execute();
         }
+
+        use scause::{Interrupt, Trap};
+        let finish = match scause::read().cause() {
+            Trap::Interrupt(Interrupt::SupervisorTimer) => {
+                set_timer(u64::MAX);
+                check_timer(); // 检查到时线程
+                false
+            }
+            _ => true,
+        };
+
+        if finish {
+            ctx.lock().status = Finish;
+        }
+
+        let stack = ctx.lock().stack;
+
         if ctx.lock().status == Running {
             RUN_THREADS.lock().push_back(ctx);
         }

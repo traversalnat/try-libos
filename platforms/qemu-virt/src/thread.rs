@@ -6,6 +6,8 @@ use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
     collections::LinkedList,
+    fmt,
+    format,
     sync::Arc,
     vec::Vec,
 };
@@ -47,7 +49,7 @@ pub fn set_current_thread(ctx: Arc<Mutex<TaskControlBlock>>) {
 }
 
 /// 线程状态
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TaskStatus {
     UnInit,
     Ready,
@@ -63,11 +65,23 @@ pub struct TaskControlBlock {
     /// 上下文
     ctx: LocalContext,
     /// 栈底部地址
-    stack: usize,
+    pub stack: usize,
     /// 返回值
     pub exit_code: Option<i32>,
     /// 状态
     pub status: TaskStatus,
+}
+
+impl fmt::Debug for TaskControlBlock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TaskControlBlock")
+            .field("context", &self.ctx)
+            .field("stack_top", &format!("{:X}", &(&self.stack + STACK_SIZE)))
+            .field("stack_bottom", &format!("{:X}", &self.stack))
+            .field("exit_code", &self.exit_code)
+            .field("status", &self.status)
+            .finish()
+    }
 }
 
 impl TaskControlBlock {

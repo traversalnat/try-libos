@@ -4,6 +4,9 @@
 #![feature(naked_functions, asm_const)]
 #![deny(warnings, missing_docs)]
 #![feature(asm_sym)]
+extern crate alloc;
+
+use alloc::{fmt, format};
 
 /// 不同地址空间的上下文控制。
 #[cfg(feature = "foreign")]
@@ -13,13 +16,25 @@ pub mod foreign;
 #[derive(Clone)]
 #[repr(C)]
 pub struct LocalContext {
-    sctx: usize,    // sscratch, 用于保存调度上下文 sp 
+    sctx: usize,    // sscratch, 用于保存调度上下文 sp
     x: [usize; 31], // x1-x31, 其中 x2 为线程上下文 sp
     sepc: usize,
     /// 是否以特权态切换。
     pub supervisor: bool,
     /// 线程中断是否开启。
     pub interrupt: bool,
+}
+
+impl fmt::Debug for LocalContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LocalContext")
+            .field("sctx", &format!("{:X}", &self.sctx))
+            .field("sepc", &format!("{:X}", &self.sepc))
+            .field("stack", &format!("{:X}", &self.x[1]))
+            .field("supervisor", &self.supervisor)
+            .field("interrupt", &self.interrupt)
+            .finish()
+    }
 }
 
 impl LocalContext {

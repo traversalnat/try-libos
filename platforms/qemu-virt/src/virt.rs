@@ -13,7 +13,7 @@ use uart_16550::MmioSerialPort;
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 
 // 物理内存容量
-const MEMORY: usize = 24 << 20;
+const MEMORY: usize = 64 << 20;
 
 pub struct Virt;
 
