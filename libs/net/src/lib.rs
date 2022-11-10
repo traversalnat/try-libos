@@ -63,8 +63,11 @@ pub fn sys_sock_connect(
     }
 }
 
-pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> TcpListener {
-    TcpListener::new(sock, local_port)
+pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Option<TcpListener> {
+    if let Some(port) = ETHERNET.mark_port(local_port) {
+        return Some(TcpListener::new(sock, port));
+    }
+    None
 }
 
 pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {

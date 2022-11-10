@@ -33,14 +33,14 @@ async fn echo(sender: SocketHandle) {
 
 pub fn app_main() {
     let sender = sys_sock_create();
-    let mut listener = sys_sock_listen(sender, 6000);
+    let mut listener = sys_sock_listen(sender, 6000).unwrap();
     static EX: Lazy<Runner> = Lazy::new(|| Runner::new());
     EX.block_on(async move {
         loop {
             if let Some(sender) = listener.accept() {
-                info!("accept");
                 EX.spawn(async move { echo(sender).await });
             }
+            // 简单将同步函数改造为异步函数
             async_yield().await;
         }
     });

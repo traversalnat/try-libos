@@ -5,11 +5,11 @@
 #![feature(allocator_api)]
 
 mod e1000;
+mod mm;
 mod pci;
 mod thread;
 mod timer;
 mod virt;
-mod mm;
 
 extern crate alloc;
 
@@ -43,9 +43,12 @@ extern "C" fn rust_main() -> ! {
     // common 中库由 platform 负责初始化
     // mem
     let (heap_base, heap_size) = Virt::heap();
-    const dispatcher_mm_size: usize = 2 << 20;
-    mm::init_heap(heap_base, dispatcher_mm_size);
-    mem::init_heap(heap_base + dispatcher_mm_size, heap_size - dispatcher_mm_size);
+    const mm_size: usize = 2 << 20;
+    mm::init_heap(heap_base, mm_size);
+    mem::init_heap(
+        heap_base + mm_size,
+        heap_size - mm_size,
+    );
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
@@ -82,6 +85,7 @@ extern "C" fn rust_main() -> ! {
 }
 
 extern "C" fn schedule() -> ! {
+    // 需要注意，调度器不能与线程争夺资源，包括全局内存分配器，TIMERS 的锁等
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
@@ -108,13 +112,15 @@ extern "C" fn schedule() -> ! {
             ctx.lock().status = Finish;
         }
 
-        let status = ctx.lock().status.clone();
-
-        if status == Running {
+        if ctx.lock().status == Running {
             THREADS.push_run(ctx);
         }
     }
     log::info!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
+}
+
+pub fn intr_disable() {
+    set_timer(Virt::rdtime() as u64 + 12500);
 }

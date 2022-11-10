@@ -3,7 +3,7 @@ use crate::{sys_sock_close, sys_sock_create, sys_sock_listen, sys_sock_status, S
 use smoltcp::iface::SocketHandle;
 use smoltcp::wire::Ipv4Address;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpProtocol, IpVersion};
-use stdio::log::info;
+use stdio::log::{info, warn};
 
 #[derive(Clone, Copy)]
 pub struct TcpListener {
@@ -12,9 +12,10 @@ pub struct TcpListener {
 }
 
 fn listen(handle: SocketHandle, port: u16) {
-    if let Some(port) = ETHERNET.mark_port(port) {
-        ETHERNET.with_socket(handle, |socket| socket.listen(port));
-    } 
+    ETHERNET.with_socket(handle, |socket| match socket.listen(port) {
+        Err(e) => warn!("listen error"),
+        _ => {}
+    });
 }
 
 impl TcpListener {
@@ -28,11 +29,11 @@ impl TcpListener {
 
     pub fn accept(&mut self) -> Option<SocketHandle> {
         if sys_sock_status(self.handle).is_active {
-            info!("new socket");
             let new_handle = sys_sock_create();
             listen(new_handle, self.local_port);
             return Some(core::mem::replace(&mut self.handle, new_handle));
         }
+
         None
     }
 }

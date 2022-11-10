@@ -1,14 +1,12 @@
 #![allow(unused)]
 
 extern crate alloc;
+use crate::mm::KAllocator;
 use crate::thread::*;
-use alloc::{
-    sync::Arc,
-    collections::BinaryHeap,
-};
+use alloc::{collections::VecDeque, sync::Arc};
 use core::cmp::Ordering;
-use spin::{Lazy, Mutex};
 use riscv::register::*;
+use spin::{Lazy, Mutex};
 
 pub const CLOCK_FREQ: usize = 12500000;
 const TICKS_PER_SEC: usize = 100;
@@ -39,25 +37,27 @@ impl Ord for TimerCondVar {
         self.partial_cmp(other).unwrap()
     }
 }
-
-pub static TIMERS: Lazy<Mutex<BinaryHeap<TimerCondVar>>> =
-    Lazy::new( || Mutex::new(BinaryHeap::<TimerCondVar>::new()) );
+pub static TIMERS: Lazy<Mutex<VecDeque<TimerCondVar, KAllocator>>> =
+    Lazy::new(|| Mutex::new(VecDeque::new_in(KAllocator)));
 
 pub fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
     task.lock().status = TaskStatus::Blocking;
-    TIMERS.lock().push(TimerCondVar { expire_ms, task });
+    TIMERS.lock().push_back(TimerCondVar { expire_ms, task });
 }
 
 /// 将到时线程移动至执行线程队列
 pub fn check_timer() {
     let current_ms = get_time_ms();
-    let mut timers = TIMERS.lock();
-    while let Some(timer) = timers.peek() {
-        if timer.expire_ms <= current_ms {
-            move_run(Arc::clone(&timer.task));
-            timers.pop();
-        } else {
-            break;
+    if !TIMERS.is_locked() {
+        let mut timers = TIMERS.lock();
+        for _ in 0..timers.len() {
+            if let Some(cond) = timers.pop_front() {
+                if cond.expire_ms <= current_ms {
+                    move_run(Arc::clone(&cond.task));
+                } else {
+                    timers.push_back(cond);
+                }
+            }
         }
     }
 }

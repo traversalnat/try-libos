@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use core::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
+use core::alloc::{AllocError, Allocator, Layout, GlobalAlloc};
 use core::ptr::{NonNull, slice_from_raw_parts_mut};
 use good_memory_allocator::SpinLockedAllocator;
 
@@ -12,7 +12,7 @@ pub(crate) fn init_heap(_heap_base: usize, _heap_size: usize) {
     }
 }
 
-pub(crate) struct KAllocator;
+pub struct KAllocator;
 
 unsafe impl Allocator for KAllocator {
     #[inline]
