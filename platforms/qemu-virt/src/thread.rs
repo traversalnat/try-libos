@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
-    collections::linked_list::LinkedList,
+    collections::VecDeque,
     fmt, format,
     sync::Arc,
     vec::Vec,
@@ -13,20 +13,21 @@ use alloc::{
 use core::alloc::Layout;
 use kernel_context::LocalContext;
 use spin::{Lazy, Mutex};
+use crate::mm::{HEAP_ALLOCATOR, KAllocator};
 
 const STACK_SIZE: usize = 0x8000;
 
 type TCBlock = Arc<Mutex<TaskControlBlock>>;
 
 pub struct Threads {
-    run_threads: Mutex<LinkedList<TCBlock>>,
+    run_threads: Mutex<VecDeque<TCBlock, KAllocator>>,
     current: Mutex<TCBlock>,
 }
 
 impl Threads {
     pub fn new() -> Self {
         Threads {
-            run_threads: Mutex::new(LinkedList::new()),
+            run_threads: Mutex::new(VecDeque::new_in(KAllocator)),
             current: Mutex::new(Arc::new(Mutex::new(TaskControlBlock::ZERO))),
         }
     }
@@ -45,6 +46,17 @@ impl Threads {
             let ctx = ctx.unwrap();
             self.set_current(Arc::clone(&ctx));
             return Some(ctx);
+        }
+        None
+    }
+
+    pub fn peek_run(&self) -> Option<TCBlock> {
+        let lock = self.run_threads.lock();
+        let ctx = lock.front();
+        if ctx.is_some() {
+            let ctx = ctx.unwrap();
+            self.set_current(Arc::clone(ctx));
+            return Some(Arc::clone(ctx));
         }
         None
     }

@@ -2,12 +2,14 @@
 #![feature(naked_functions, asm_sym, asm_const)]
 #![feature(linkage)]
 #![feature(unboxed_closures, fn_traits)]
+#![feature(allocator_api)]
 
 mod e1000;
 mod pci;
 mod thread;
 mod timer;
 mod virt;
+mod mm;
 
 extern crate alloc;
 
@@ -41,7 +43,9 @@ extern "C" fn rust_main() -> ! {
     // common 中库由 platform 负责初始化
     // mem
     let (heap_base, heap_size) = Virt::heap();
-    mem::init_heap(heap_base, heap_size);
+    const dispatcher_mm_size: usize = 1 << 20;
+    mm::init_heap(heap_base, dispatcher_mm_size);
+    mem::init_heap(heap_base + dispatcher_mm_size, heap_size - dispatcher_mm_size);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
@@ -54,9 +58,7 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    Virt::spawn(|| {
-        obj_main();
-    });
+    Virt::spawn(obj_main);
 
     // idle thread
     Virt::spawn(|| loop {

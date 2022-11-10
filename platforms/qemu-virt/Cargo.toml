@@ -10,6 +10,7 @@ sbi-rt = {version="0.0.2" , features = ["legacy"]}
 uart_16550 = "0.2.18"
 spin = "0.9.4"
 riscv = "0.9.0"
+good_memory_allocator = "0.1.7"
 
 platform = { path = "../platform" }
 qemu-virt-ld = { path = "../qemu-virt-ld"}
