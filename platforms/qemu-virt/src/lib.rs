@@ -43,7 +43,7 @@ extern "C" fn rust_main() -> ! {
     // common 中库由 platform 负责初始化
     // mem
     let (heap_base, heap_size) = Virt::heap();
-    const dispatcher_mm_size: usize = 1 << 20;
+    const dispatcher_mm_size: usize = 2 << 20;
     mm::init_heap(heap_base, dispatcher_mm_size);
     mem::init_heap(heap_base + dispatcher_mm_size, heap_size - dispatcher_mm_size);
 
@@ -87,7 +87,6 @@ extern "C" fn schedule() -> ! {
         sie::set_stimer();
     }
     while let Some(ctx) = THREADS.pop_run() {
-        info!("{}", ctx.lock().stack);
         set_timer(Virt::rdtime() as u64 + 12500);
         // 设置当前线程状态
         ctx.lock().status = Running;

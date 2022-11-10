@@ -29,10 +29,9 @@ impl TcpListener {
     pub fn accept(&mut self) -> Option<SocketHandle> {
         if sys_sock_status(self.handle).is_active {
             info!("new socket");
-            // let new_handle = sys_sock_create();
-            // listen(new_handle, self.local_port);
-            // return Some(core::mem::replace(&mut self.handle, new_handle));
-            return Some(self.handle);
+            let new_handle = sys_sock_create();
+            listen(new_handle, self.local_port);
+            return Some(core::mem::replace(&mut self.handle, new_handle));
         }
         None
     }
