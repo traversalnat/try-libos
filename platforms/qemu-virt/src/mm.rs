@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use core::alloc::{AllocError, Allocator, Layout, GlobalAlloc};
-use core::ptr::{NonNull, slice_from_raw_parts_mut};
+use core::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
+use core::ptr::{slice_from_raw_parts_mut, NonNull};
 use good_memory_allocator::SpinLockedAllocator;
 
 pub(crate) static HEAP_ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();

@@ -4,8 +4,8 @@
 
 extern crate alloc;
 
-use core::time::Duration;
 use alloc::boxed::Box;
+use core::time::Duration;
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
@@ -22,13 +22,11 @@ fn obj_main() {
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    PlatformImpl::spawn(|| {
-        loop {
-            let val = PlatformImpl::rdtime() as i64;
-            net::ETHERNET.poll(net::Instant::from_millis(val));
-            let delay = Duration::from_millis(100);
-            PlatformImpl::wait(delay);
-        }
+    PlatformImpl::spawn(|| loop {
+        let val = PlatformImpl::rdtime() as i64;
+        net::ETHERNET.poll(net::Instant::from_millis(val));
+        let delay = Duration::from_millis(100);
+        PlatformImpl::wait(delay);
     });
 }
 

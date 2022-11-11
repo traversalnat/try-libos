@@ -6,17 +6,15 @@ use std::{
     thread,
 };
 
-use core::time::Duration;
 use crate::eth::EthDevice;
 use chrono::Local;
+use core::time::Duration;
+use lazy_static::*;
 use platform::Platform;
 use spin::Mutex;
-use lazy_static::*;
 
-lazy_static!{
-    pub static ref ETH_DEVICE: Mutex<EthDevice> =  {
-        Mutex::new(EthDevice::new())
-    };
+lazy_static! {
+    pub static ref ETH_DEVICE: Mutex<EthDevice> = { Mutex::new(EthDevice::new()) };
 }
 
 const KERNEL_HEAP_SIZE: usize = 0x300_0000;
@@ -71,9 +69,7 @@ impl platform::Platform for MacOS {
 
     #[inline]
     fn heap() -> (usize, usize) {
-        unsafe {
-            (HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE)
-        }
+        unsafe { (HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE) }
     }
 
     #[inline]

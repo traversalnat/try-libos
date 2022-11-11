@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(alloc_error_handler)]
-
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
@@ -21,8 +20,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 pub fn init_heap(_heap_base: usize, _heap_size: usize) {
     #[cfg(not(feature = "std"))]
     unsafe {
-        HEAP_ALLOCATOR
-            .init(_heap_base, _heap_size);
+        HEAP_ALLOCATOR.init(_heap_base, _heap_size);
     }
 }
 

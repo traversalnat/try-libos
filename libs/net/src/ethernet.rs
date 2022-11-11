@@ -78,13 +78,16 @@ impl<'a> Device<'a> for EthernetDevice {
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        PHYNET.get().map(|net| {
-            if net.can_send() {
-                Some(TxToken(&mut self.tx_buffer[..]))
-            } else {
-                None
-            }
-        }).unwrap()
+        PHYNET
+            .get()
+            .map(|net| {
+                if net.can_send() {
+                    Some(TxToken(&mut self.tx_buffer[..]))
+                } else {
+                    None
+                }
+            })
+            .unwrap()
     }
 }
 
@@ -177,15 +180,18 @@ impl EthernetDriver {
             Some(Dhcpv4Event::Configured(config)) => {
                 self.set_ipv4_addr(config.address);
                 if let Some(router) = config.router {
-                    self.ethernet.routes_mut().add_default_ipv4_route(router).unwrap();
+                    self.ethernet
+                        .routes_mut()
+                        .add_default_ipv4_route(router)
+                        .unwrap();
                 } else {
                     self.ethernet.routes_mut().remove_default_ipv4_route();
                 }
-            },
+            }
             Some(Dhcpv4Event::Deconfigured) => {
                 self.set_ipv4_addr(Ipv4Cidr::new(Ipv4Address::UNSPECIFIED, 0));
                 self.ethernet.routes_mut().remove_default_ipv4_route();
-            },
+            }
             _ => {}
         }
     }
@@ -282,7 +288,8 @@ impl GlobalEthernetDriver {
             .lock()
             .as_mut()
             .expect("Uninitialized EthernetDriver")
-            .poll_delay(timestamp).into()
+            .poll_delay(timestamp)
+            .into()
     }
 
     pub fn mark_port(&self, port: u16) -> Option<u16> {

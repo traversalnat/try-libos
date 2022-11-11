@@ -1,4 +1,4 @@
-const SSTATUS_SIE: usize =  1 << 1;  // Supervisor Interrupt Enable
+const SSTATUS_SIE: usize = 1 << 1; // Supervisor Interrupt Enable
 
 fn r_sstatus() -> usize {
     let mut sstatus: usize;

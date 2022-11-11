@@ -14,8 +14,8 @@ pub fn pci_init() {
             base[1].write(7);
             for i in 0..6 {
                 let old = base[4 + i].read();
-                base[4+i].write(0xffffffff);
-                base[4+i].write(old);
+                base[4 + i].write(0xffffffff);
+                base[4 + i].write(old);
             }
             // e1000 register address
             base[4].write(0x40000000);

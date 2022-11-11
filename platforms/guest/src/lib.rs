@@ -7,10 +7,10 @@ pub use basic::MacOS as PlatformImpl;
 use basic::ETH_DEVICE;
 use core::time::Duration;
 pub use eth::MACADDR;
+use executor;
 pub use platform::Platform;
 use std::process::exit;
 use stdio::{self, log::info};
-use executor;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -27,11 +27,9 @@ fn main() {
 
     executor::init(&basic::Executor);
 
-    PlatformImpl::spawn(|| {
-        loop {
-            ETH_DEVICE.lock().async_recv();
-            PlatformImpl::wait(Duration::from_millis(100));
-        }
+    PlatformImpl::spawn(|| loop {
+        ETH_DEVICE.lock().async_recv();
+        PlatformImpl::wait(Duration::from_millis(100));
     });
 
     obj_main();

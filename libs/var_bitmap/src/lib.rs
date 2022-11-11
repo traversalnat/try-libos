@@ -15,7 +15,7 @@ impl Bitmap {
     pub fn new() -> Self {
         Self::with_size(0)
     }
-    
+
     /// Create a new bitmap with initial size `size`
     pub fn with_size(size: usize) -> Self {
         let mut bits = Vec::new();
@@ -28,38 +28,35 @@ impl Bitmap {
         for _ in 0..bits_size {
             bits.push(0);
         }
-        
-        Self {
-            size,
-            bits,
-        }
+
+        Self { size, bits }
     }
-    
+
     /// Get bitmap size
     pub fn size(&self) -> usize {
         self.size
     }
-    
+
     /// Get bit at index `idx`, panic if `idx` out of bound
     pub fn get(&self, idx: usize) -> bool {
         if idx >= self.size {
             panic!("Out of bound error");
         }
-        let byte_idx = idx >> 3;    // idx / 8
-        let offset = idx & 0b111;   // idx % 8
+        let byte_idx = idx >> 3; // idx / 8
+        let offset = idx & 0b111; // idx % 8
         let byte = self.bits[byte_idx];
         (byte >> (7 - offset)) & 1 == 1
     }
-    
+
     /// Set bit at index `idx`
     pub fn set(&mut self, idx: usize, value: bool) {
         if idx >= self.size {
             panic!("Out of bound error");
         }
-        let byte_idx = idx >> 3;    // idx / 8
-        let offset = idx & 0b111;   // idx % 8
+        let byte_idx = idx >> 3; // idx / 8
+        let offset = idx & 0b111; // idx % 8
         let mut byte = self.bits[byte_idx];
-        
+
         let curval = (byte >> (7 - offset)) & 1;
         let mask;
         if value {
@@ -70,10 +67,11 @@ impl Bitmap {
         byte = byte ^ (mask << (7 - offset)); // Bit flipping
         self.bits[byte_idx] = byte;
     }
-    
+
     /// Push a bit
     pub fn push(&mut self, value: bool) {
-        if self.size & 0b111 == 0 { // size % 8 == 0
+        if self.size & 0b111 == 0 {
+            // size % 8 == 0
             // Add new byte
             self.bits.push(0);
         }
@@ -81,5 +79,4 @@ impl Bitmap {
         self.size += 1;
         self.set(idx, value);
     }
-    
 }

@@ -1,4 +1,4 @@
-use core::future::{Future, poll_fn};
+use core::future::{poll_fn, Future};
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
@@ -16,7 +16,11 @@ pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
     poll_fn(|cx| async_accept_poll(cx, listener)).await
 }
 
-pub fn async_recv_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Option<usize>> {
+pub fn async_recv_poll(
+    cx: &mut Context<'_>,
+    sock: SocketHandle,
+    va: &mut [u8],
+) -> Poll<Option<usize>> {
     if sys_sock_status(sock).can_recv {
         Poll::Ready(sys_sock_recv(sock, va))
     } else {
@@ -28,7 +32,11 @@ pub async fn async_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     poll_fn(|cx| async_recv_poll(cx, sock, va)).await
 }
 
-pub fn async_send_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Option<usize>> {
+pub fn async_send_poll(
+    cx: &mut Context<'_>,
+    sock: SocketHandle,
+    va: &mut [u8],
+) -> Poll<Option<usize>> {
     if sys_sock_status(sock).can_send {
         Poll::Ready(sys_sock_send(sock, va))
     } else {
@@ -39,4 +47,3 @@ pub fn async_send_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) 
 pub async fn async_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     poll_fn(|cx| async_send_poll(cx, sock, va)).await
 }
-

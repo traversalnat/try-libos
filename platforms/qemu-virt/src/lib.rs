@@ -9,8 +9,8 @@ mod mm;
 mod pci;
 mod thread;
 mod timer;
-mod virt;
 mod trap;
+mod virt;
 
 extern crate alloc;
 
@@ -46,10 +46,7 @@ extern "C" fn rust_main() -> ! {
     let (heap_base, heap_size) = Virt::heap();
     const mm_size: usize = 2 << 20;
     mm::init_heap(heap_base, mm_size);
-    mem::init_heap(
-        heap_base + mm_size,
-        heap_size - mm_size,
-    );
+    mem::init_heap(heap_base + mm_size, heap_size - mm_size);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 

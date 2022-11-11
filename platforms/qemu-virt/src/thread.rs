@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+use crate::mm::{KAllocator, HEAP_ALLOCATOR};
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
@@ -13,7 +14,6 @@ use alloc::{
 use core::alloc::Layout;
 use kernel_context::LocalContext;
 use spin::{Lazy, Mutex};
-use crate::mm::{HEAP_ALLOCATOR, KAllocator};
 
 const STACK_SIZE: usize = 0x8000;
 

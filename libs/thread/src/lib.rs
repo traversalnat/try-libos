@@ -2,14 +2,14 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use spin::{Once};
+use spin::Once;
 
-pub trait Thread : Sync {
+pub trait Thread: Sync {
     fn spawn(&self, f: Box<dyn FnOnce() + Send>);
     fn yields(&self);
 }
 
-static THREAD : Once<&'static dyn Thread> = Once::new();
+static THREAD: Once<&'static dyn Thread> = Once::new();
 
 pub fn init(tr: &'static dyn Thread) {
     THREAD.call_once(|| tr);
