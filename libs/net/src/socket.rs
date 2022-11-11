@@ -1,8 +1,10 @@
-use crate::ETHERNET;
-use crate::{sys_sock_close, sys_sock_create, sys_sock_listen, sys_sock_status, SocketState};
-use smoltcp::iface::SocketHandle;
-use smoltcp::wire::Ipv4Address;
-use smoltcp::wire::{IpAddress, IpEndpoint, IpProtocol, IpVersion};
+use crate::{
+    sys_sock_close, sys_sock_create, sys_sock_listen, sys_sock_status, SocketState, ETHERNET,
+};
+use smoltcp::{
+    iface::SocketHandle,
+    wire::{IpAddress, IpEndpoint, IpProtocol, IpVersion, Ipv4Address},
+};
 use stdio::log::{info, warn};
 
 pub struct TcpListener {

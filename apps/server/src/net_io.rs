@@ -1,6 +1,8 @@
-use core::future::{poll_fn, Future};
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    future::{poll_fn, Future},
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use net::*;
 use stdio::log::info;

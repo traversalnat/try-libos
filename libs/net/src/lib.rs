@@ -4,10 +4,8 @@ mod ethernet;
 mod socket;
 
 use core::result::Result;
-pub use ethernet::Duration;
 use ethernet::GlobalEthernetDriver;
-pub use ethernet::Instant;
-pub use ethernet::SocketHandle;
+pub use ethernet::{Duration, Instant, SocketHandle};
 pub use smoltcp::wire::{IpAddress, IpEndpoint};
 pub use socket::TcpListener;
 use spin::Once;

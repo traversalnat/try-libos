@@ -6,9 +6,10 @@ use alloc::{
     vec::Vec,
 };
 use core::alloc::Layout;
-use isomorphic_drivers::net::ethernet::intel::e1000::E1000;
-use isomorphic_drivers::net::ethernet::structs::EthernetAddress as DriverEthernetAddress;
-use isomorphic_drivers::provider;
+use isomorphic_drivers::{
+    net::ethernet::{intel::e1000::E1000, structs::EthernetAddress as DriverEthernetAddress},
+    provider,
+};
 use spin::{Lazy, Mutex};
 
 static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));

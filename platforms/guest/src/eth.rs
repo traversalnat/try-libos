@@ -2,10 +2,7 @@ extern crate alloc;
 
 use core::panic;
 
-use pnet::datalink::Channel::Ethernet;
-use pnet::datalink::DataLinkReceiver;
-use pnet::datalink::DataLinkSender;
-use pnet::datalink::{self, NetworkInterface};
+use pnet::datalink::{self, Channel::Ethernet, DataLinkReceiver, DataLinkSender, NetworkInterface};
 
 use alloc::{collections::LinkedList, vec, vec::Vec};
 use spin::{Lazy, Mutex};

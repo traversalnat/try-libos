@@ -1,9 +1,7 @@
 #![allow(unused)]
 
 extern crate alloc;
-use crate::mm::KAllocator;
-use crate::thread::*;
-use crate::trap::*;
+use crate::{mm::KAllocator, thread::*, trap::*};
 use alloc::{collections::VecDeque, sync::Arc};
 use core::cmp::Ordering;
 use riscv::register::*;

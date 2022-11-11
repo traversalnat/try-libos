@@ -1,15 +1,13 @@
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use alloc::vec;
-use smoltcp::iface::{Route, Routes};
-use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
-use smoltcp::socket::Dhcpv4Event;
-use smoltcp::socket::Dhcpv4Socket;
-use smoltcp::socket::TcpSocketBuffer;
-use smoltcp::wire::Ipv4Address;
-use smoltcp::wire::{IpCidr, Ipv4Cidr};
-use smoltcp::Result;
+use alloc::{collections::BTreeMap, vec};
+use smoltcp::{
+    iface::{Route, Routes},
+    phy::{self, Device, DeviceCapabilities, Medium},
+    socket::{Dhcpv4Event, Dhcpv4Socket, TcpSocketBuffer},
+    wire::{IpCidr, Ipv4Address, Ipv4Cidr},
+    Result,
+};
 
 use spin::Mutex;
 
@@ -18,10 +16,11 @@ use var_bitmap::Bitmap;
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
 pub type Interface<T> = smoltcp::iface::Interface<'static, T>;
 pub type InterfaceInner = smoltcp::iface::Context<'static>;
-pub use smoltcp::iface::SocketHandle;
-pub use smoltcp::socket::TcpState;
-pub use smoltcp::time::Duration;
-pub use smoltcp::time::Instant;
+pub use smoltcp::{
+    iface::SocketHandle,
+    socket::TcpState,
+    time::{Duration, Instant},
+};
 
 use self::EthernetDevice as NetDevice;
 use crate::PHYNET;

@@ -1,8 +1,6 @@
 extern crate alloc;
 
-use crate::e1000;
-use crate::thread;
-use crate::timer;
+use crate::{e1000, thread, timer};
 use alloc::boxed::Box;
 use platform::Platform;
 use qemu_virt_ld as linker;

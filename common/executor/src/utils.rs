@@ -1,7 +1,9 @@
-use core::future::Future;
 /// Future yield
 use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    future::Future,
+    task::{Context, Poll},
+};
 
 pub struct Yield {
     yielded: bool,

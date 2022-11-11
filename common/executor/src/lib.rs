@@ -3,17 +3,16 @@ extern crate alloc;
 
 mod utils;
 
-use alloc::boxed::Box;
-use alloc::collections::LinkedList;
-use alloc::sync::Arc;
-use core::future::Future;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 use spin::{Lazy, Mutex, Once};
 use stdio::log::info;
 
-pub use futures;
-pub use futures::{future::poll_fn, join};
+pub use futures::{self, future::poll_fn, join};
 pub use utils::async_yield;
 
 /// Executor trait
