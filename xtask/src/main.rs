@@ -129,7 +129,7 @@ std = []
         use std::process::Command;
         let target = self.make(true);
         let elf = target.join("release").join("obj");
-        let mut command = Command::new(elf.to_owned());
+        let mut command = Command::new(elf);
         let status = command.status().expect("guest failed");
         assert!(status.success());
     }
@@ -142,7 +142,7 @@ std = []
             .arg("-nographic")
             .arg("-kernel")
             .arg(objcopy(elf, true))
-            .args(&["-m", "128M"])
+            .args(["-m", "128M"])
             .args(["-netdev", "user,id=net0,hostfwd=tcp::6000-:6000,hostfwd=tcp::6001-:6001"])
             .args([
                 "-object",
@@ -150,7 +150,7 @@ std = []
             ])
             .args(["-device", "e1000,netdev=net0"])
             .optional(&self.gdb, |qemu, gdb| {
-                qemu.args(&["-S", "-gdb", &format!("tcp::{gdb}")]);
+                qemu.args(["-S", "-gdb", &format!("tcp::{gdb}")]);
             })
             .invoke();
     }
