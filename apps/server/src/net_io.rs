@@ -1,13 +1,12 @@
 use core::{
-    future::{poll_fn, Future},
-    pin::Pin,
+    future::{poll_fn},
     task::{Context, Poll},
 };
 
 use net::*;
-use stdio::log::info;
 
-pub fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
+
+pub fn async_accept_poll(_cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
     match listener.accept() {
         Some(handle) => Poll::Ready(handle),
         _ => Poll::Pending,
@@ -19,7 +18,7 @@ pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
 }
 
 pub fn async_recv_poll(
-    cx: &mut Context<'_>,
+    _cx: &mut Context<'_>,
     sock: SocketHandle,
     va: &mut [u8],
 ) -> Poll<Option<usize>> {
@@ -35,7 +34,7 @@ pub async fn async_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
 }
 
 pub fn async_send_poll(
-    cx: &mut Context<'_>,
+    _cx: &mut Context<'_>,
     sock: SocketHandle,
     va: &mut [u8],
 ) -> Poll<Option<usize>> {

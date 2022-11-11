@@ -4,9 +4,9 @@ mod net_io;
 
 pub extern crate alloc;
 
-use alloc::{borrow::ToOwned, string::String, vec};
-use executor::{async_yield, Runner};
-use mem::*;
+use alloc::{vec};
+use executor::{Runner};
+
 use net::*;
 use net_io::{async_accept, async_recv, async_send};
 use spin::Lazy;
