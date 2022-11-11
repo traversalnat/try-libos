@@ -126,7 +126,7 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     // let default_route = Ipv4Address::new(10, 0, 2, 2);
     // let default_route = Ipv4Address::new(192, 168, 1, 1);
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
-    let mut routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
+    let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
     // routes.add_default_ipv4_route(default_route);
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])

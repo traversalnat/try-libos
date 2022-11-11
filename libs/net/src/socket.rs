@@ -1,11 +1,10 @@
 use crate::{
-    sys_sock_close, sys_sock_create, sys_sock_listen, sys_sock_status, SocketState, ETHERNET,
+    sys_sock_create, sys_sock_status, ETHERNET,
 };
 use smoltcp::{
     iface::SocketHandle,
-    wire::{IpAddress, IpEndpoint, IpProtocol, IpVersion, Ipv4Address},
 };
-use stdio::log::{info, warn};
+use stdio::log::{warn};
 
 pub struct TcpListener {
     handle: SocketHandle,
@@ -14,7 +13,7 @@ pub struct TcpListener {
 
 fn listen(handle: SocketHandle, port: u16) {
     ETHERNET.with_socket(handle, |socket| match socket.listen(port) {
-        Err(e) => warn!("listen error"),
+        Err(_e) => warn!("listen error"),
         _ => {}
     });
 }
