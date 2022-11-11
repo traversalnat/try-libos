@@ -10,6 +10,7 @@ mod pci;
 mod thread;
 mod timer;
 mod virt;
+mod trap;
 
 extern crate alloc;
 
@@ -119,8 +120,4 @@ extern "C" fn schedule() -> ! {
     log::info!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
-}
-
-pub fn intr_disable() {
-    set_timer(Virt::rdtime() as u64 + 12500);
 }

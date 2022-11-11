@@ -3,6 +3,7 @@
 extern crate alloc;
 use crate::mm::KAllocator;
 use crate::thread::*;
+use crate::trap::*;
 use alloc::{collections::VecDeque, sync::Arc};
 use core::cmp::Ordering;
 use riscv::register::*;
@@ -48,15 +49,13 @@ pub fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
 /// 将到时线程移动至执行线程队列
 pub fn check_timer() {
     let current_ms = get_time_ms();
-    if !TIMERS.is_locked() {
-        let mut timers = TIMERS.lock();
-        for _ in 0..timers.len() {
-            if let Some(cond) = timers.pop_front() {
-                if cond.expire_ms <= current_ms {
-                    move_run(Arc::clone(&cond.task));
-                } else {
-                    timers.push_back(cond);
-                }
+    let mut timers = TIMERS.lock();
+    for _ in 0..timers.len() {
+        if let Some(cond) = timers.pop_front() {
+            if cond.expire_ms <= current_ms {
+                move_run(Arc::clone(&cond.task));
+            } else {
+                timers.push_back(cond);
             }
         }
     }
@@ -76,7 +75,12 @@ pub fn get_time_ms() -> u128 {
 pub fn sys_sleep(ms: u128) -> isize {
     let expire_ms = get_time_ms() + ms;
     let ctx = current_thread();
+
+    // 关闭中断防止与调度器竞争
+    intr_off();
     move_timer(expire_ms, ctx);
+    intr_on();
+
     sys_yield();
     0
 }

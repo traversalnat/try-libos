@@ -5,14 +5,14 @@ use core::task::{Context, Poll};
 use net::*;
 use stdio::log::info;
 
-pub fn async_accept_poll(cx: &mut Context<'_>, mut listener: TcpListener) -> Poll<SocketHandle> {
+pub fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
     match listener.accept() {
         Some(handle) => Poll::Ready(handle),
         _ => Poll::Pending,
     }
 }
 
-pub async fn async_accept(mut listener: TcpListener) -> SocketHandle {
+pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
     poll_fn(|cx| async_accept_poll(cx, listener)).await
 }
 

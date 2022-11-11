@@ -5,7 +5,7 @@ mod net_io;
 pub extern crate alloc;
 
 use alloc::{borrow::ToOwned, string::String, vec};
-use executor::{Runner, async_yield};
+use executor::{async_yield, Runner};
 use mem::*;
 use net::*;
 use net_io::{async_accept, async_recv, async_send};
@@ -37,11 +37,8 @@ pub fn app_main() {
     static EX: Lazy<Runner> = Lazy::new(|| Runner::new());
     EX.block_on(async move {
         loop {
-            if let Some(sender) = listener.accept() {
-                EX.spawn(async move { echo(sender).await });
-            }
-            // 简单将同步函数改造为异步函数
-            async_yield().await;
+            let sender = async_accept(&mut listener).await;
+            EX.spawn(echo(sender));
         }
     });
 }

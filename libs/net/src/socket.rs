@@ -5,7 +5,6 @@ use smoltcp::wire::Ipv4Address;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpProtocol, IpVersion};
 use stdio::log::{info, warn};
 
-#[derive(Clone, Copy)]
 pub struct TcpListener {
     handle: SocketHandle,
     local_port: u16,
