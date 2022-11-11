@@ -9,8 +9,8 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use spin::{Lazy, Mutex, Once};
-use stdio::log::info;
+use spin::{Mutex, Once};
+
 
 pub use futures::{self, future::poll_fn, join};
 pub use utils::async_yield;
