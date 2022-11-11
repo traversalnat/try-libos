@@ -18,7 +18,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log::{self};
 use thread::*;
 use timer::*;
 use uart_16550::MmioSerialPort;
