@@ -44,9 +44,9 @@ extern "C" fn rust_main() -> ! {
     // common 中库由 platform 负责初始化
     // mem
     let (heap_base, heap_size) = Virt::heap();
-    const mm_size: usize = 2 << 20;
-    mm::init_heap(heap_base, mm_size);
-    mem::init_heap(heap_base + mm_size, heap_size - mm_size);
+    const MM_SIZE: usize = 2 << 20;
+    mm::init_heap(heap_base, MM_SIZE);
+    mem::init_heap(heap_base + MM_SIZE, heap_size - MM_SIZE);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
