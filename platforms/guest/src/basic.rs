@@ -8,13 +8,13 @@ use std::{
 
 use crate::eth::EthDevice;
 use chrono::Local;
-use core::time::Duration;
+
 use lazy_static::*;
 use platform::Platform;
 use spin::Mutex;
 
 lazy_static! {
-    pub static ref ETH_DEVICE: Mutex<EthDevice> = { Mutex::new(EthDevice::new()) };
+    pub static ref ETH_DEVICE: Mutex<EthDevice> = Mutex::new(EthDevice::new());
 }
 
 const KERNEL_HEAP_SIZE: usize = 0x300_0000;

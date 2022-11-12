@@ -10,7 +10,7 @@ pub use eth::MACADDR;
 use executor;
 pub use platform::Platform;
 use std::process::exit;
-use stdio::{self, log::info};
+use stdio::{self};
 
 #[linkage = "weak"]
 #[no_mangle]
