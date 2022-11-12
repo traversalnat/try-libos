@@ -27,6 +27,8 @@ pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
 
+const MM_SIZE: usize = 2 << 20;
+
 #[linkage = "weak"]
 #[no_mangle]
 fn obj_main() {
@@ -44,7 +46,6 @@ extern "C" fn rust_main() -> ! {
     // common 中库由 platform 负责初始化
     // mem
     let (heap_base, heap_size) = Virt::heap();
-    const MM_SIZE: usize = 2 << 20;
     mm::init_heap(heap_base, MM_SIZE);
     mem::init_heap(heap_base + MM_SIZE, heap_size - MM_SIZE);
 

@@ -14,6 +14,7 @@ pub(crate) fn init_heap(_heap_base: usize, _heap_size: usize) {
     }
 }
 
+/// 调度器专用内存分配器
 pub struct KAllocator;
 
 unsafe impl Allocator for KAllocator {

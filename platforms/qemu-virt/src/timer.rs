@@ -36,16 +36,20 @@ impl Ord for TimerCondVar {
         self.partial_cmp(other).unwrap()
     }
 }
+
+/// TIMERS: 等待队列，操作时必须关闭中断
 pub static TIMERS: Lazy<Mutex<VecDeque<TimerCondVar, KAllocator>>> =
     Lazy::new(|| Mutex::new(VecDeque::new_in(KAllocator)));
 
-pub fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
+pub(crate) fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
+    let status = push_off();
     task.lock().status = TaskStatus::Blocking;
     TIMERS.lock().push_back(TimerCondVar { expire_ms, task });
+    pop_on(status);
 }
 
 /// 将到时线程移动至执行线程队列
-pub fn check_timer() {
+pub(crate) fn check_timer() {
     let current_ms = get_time_ms();
     let mut timers = TIMERS.lock();
     for _ in 0..timers.len() {
@@ -74,10 +78,7 @@ pub fn sys_sleep(ms: u128) -> isize {
     let expire_ms = get_time_ms() + ms;
     let ctx = current_thread();
 
-    // 关闭中断防止与调度器竞争
-    intr_off();
     move_timer(expire_ms, ctx);
-    intr_on();
 
     sys_yield();
     0
