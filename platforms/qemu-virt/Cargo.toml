@@ -18,6 +18,7 @@ qemu-virt-ld = { path = "../qemu-virt-ld"}
 kernel-context = {path = "./kernel-context", features = []}
 mem = {path = "../../common/mem"}
 executor = {path = "../../common/executor"}
+collections = {path = "../../common/collections"}
 
 virtio-drivers = "0.1.0"
 dtb-walker = "0.1.3"

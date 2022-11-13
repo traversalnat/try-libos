@@ -3,6 +3,7 @@
 extern crate alloc;
 use crate::{mm::KAllocator, thread::*, trap::*};
 use alloc::{collections::VecDeque, sync::Arc};
+use collections::heap::Heap;
 use core::cmp::Ordering;
 use riscv::register::*;
 use spin::{Lazy, Mutex};
@@ -38,13 +39,13 @@ impl Ord for TimerCondVar {
 }
 
 /// TIMERS: 等待队列，操作时必须关闭中断
-pub static TIMERS: Lazy<Mutex<VecDeque<TimerCondVar, KAllocator>>> =
-    Lazy::new(|| Mutex::new(VecDeque::new_in(KAllocator)));
+pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar, KAllocator>>> =
+    Lazy::new(|| Mutex::new(Heap::new_in(KAllocator)));
 
 pub(crate) fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
     let status = push_off();
     task.lock().status = TaskStatus::Blocking;
-    TIMERS.lock().push_back(TimerCondVar { expire_ms, task });
+    TIMERS.lock().push(TimerCondVar { expire_ms, task });
     pop_on(status);
 }
 
@@ -52,13 +53,12 @@ pub(crate) fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
 pub(crate) fn check_timer() {
     let current_ms = get_time_ms();
     let mut timers = TIMERS.lock();
-    for _ in 0..timers.len() {
-        if let Some(cond) = timers.pop_front() {
-            if cond.expire_ms <= current_ms {
-                move_run(Arc::clone(&cond.task));
-            } else {
-                timers.push_back(cond);
-            }
+    while let Some(cond) = timers.peek() {
+        if cond.expire_ms <= current_ms {
+            move_run(Arc::clone(&cond.task));
+            timers.pop();
+        } else {
+            break;
         }
     }
 }

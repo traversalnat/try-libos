@@ -4,6 +4,7 @@ members = [
     "common/stdio",
     "common/mem",
     "common/executor",
+    "common/collections",
     "libs/thread",
     "libs/time",
     "libs/net",
