@@ -5,7 +5,7 @@ mod net_io;
 pub extern crate alloc;
 
 use alloc::{vec};
-use executor::{Runner};
+use executor::{async_spawn, async_block_on};
 
 use net::*;
 use net_io::{async_accept, async_recv, async_send};
@@ -34,11 +34,10 @@ async fn echo(sender: SocketHandle) {
 pub fn app_main() {
     let sender = sys_sock_create();
     let mut listener = sys_sock_listen(sender, 6000).unwrap();
-    static EX: Lazy<Runner> = Lazy::new(|| Runner::new());
-    EX.block_on(async move {
+    async_block_on(async move {
         loop {
             let sender = async_accept(&mut listener).await;
-            EX.spawn(echo(sender));
+            async_spawn(echo(sender));
         }
     });
 }

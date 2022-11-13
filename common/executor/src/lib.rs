@@ -9,8 +9,7 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use spin::{Mutex, Once};
-
+use spin::{Lazy, Mutex, Once};
 
 pub use futures::{self, future::poll_fn, join};
 pub use utils::async_yield;
@@ -96,5 +95,43 @@ impl Runner {
                 }
             };
         }
+    }
+}
+
+pub fn async_spawn<F>(future: F)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    static EX: Lazy<Runner> = Lazy::new(|| {
+        let runner = Runner::new();
+        for _ in 0..=EXECUTOR.wait().sys_cpus() {
+            EXECUTOR.wait().sys_spawn(Box::new(|| loop {
+                EX.block_on(async_yield());
+            }));
+        }
+        runner
+    });
+
+    EX.spawn(Box::pin(future));
+}
+
+pub fn async_block_on<F, R>(mut future: F) -> R
+where
+    F: Future<Output = R> + Send + 'static,
+{
+    let waker = async_task::waker_fn(|| {});
+
+    let mut cx = Context::from_waker(&waker);
+
+    loop {
+        let check_handle = unsafe { Pin::new_unchecked(&mut future) };
+        match Future::poll(check_handle, &mut cx) {
+            Poll::Ready(val) => {
+                return val;
+            }
+            Poll::Pending => {
+                continue;
+            }
+        };
     }
 }
