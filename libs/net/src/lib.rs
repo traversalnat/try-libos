@@ -2,6 +2,7 @@
 
 mod ethernet;
 mod socket;
+mod net_io;
 
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
@@ -99,3 +100,6 @@ pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
 pub fn sys_sock_close(sock: SocketHandle) {
     ETHERNET.close_socket(sock);
 }
+
+/// async version
+pub use net_io::{async_listen, async_accept, async_send, async_recv};

@@ -1,15 +1,11 @@
 #![no_std]
 
-mod net_io;
-
 pub extern crate alloc;
 
-use alloc::{vec};
-use executor::{async_spawn, async_block_on};
+use alloc::vec;
+use executor::{async_block_on, async_spawn};
 
 use net::*;
-use net_io::{async_accept, async_recv, async_send};
-use spin::Lazy;
 use stdio::{log::info, *};
 
 async fn echo(sender: SocketHandle) {
@@ -32,9 +28,8 @@ async fn echo(sender: SocketHandle) {
 }
 
 pub fn app_main() {
-    let sender = sys_sock_create();
-    let mut listener = sys_sock_listen(sender, 6000).unwrap();
     async_block_on(async move {
+        let mut listener = async_listen(6000).await.unwrap();
         loop {
             let sender = async_accept(&mut listener).await;
             async_spawn(echo(sender));
