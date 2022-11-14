@@ -72,14 +72,8 @@ extern "C" fn rust_main() -> ! {
         timer::sys_yield();
     });
 
-    let mut t = TaskControlBlock::ZERO;
-    t.init(schedule as usize);
-    unsafe {
-        t.execute();
-    }
+    schedule();
 
-    log::warn!("error shutdown");
-    system_reset(Shutdown, NoReason);
     unreachable!()
 }
 
@@ -115,7 +109,7 @@ extern "C" fn schedule() -> ! {
             THREADS.push_run(ctx);
         }
     }
-    log::info!("Shutdown\n");
+    log::warn!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
 }
