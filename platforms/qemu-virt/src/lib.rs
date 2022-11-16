@@ -27,6 +27,8 @@ pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
 
+use crate::trap::intr_off;
+
 const MM_SIZE: usize = 2 << 20;
 
 #[linkage = "weak"]
@@ -72,8 +74,12 @@ extern "C" fn rust_main() -> ! {
         timer::sys_yield();
     });
 
-    schedule();
-
+    let mut t = TaskControlBlock::ZERO;
+    t.init(schedule as usize);
+    unsafe {
+        t.execute();
+    }
+    log::warn!("error Shutdown");
     unreachable!()
 }
 
@@ -85,6 +91,7 @@ extern "C" fn schedule() -> ! {
     }
     while let Some(ctx) = THREADS.pop_run() {
         set_timer(Virt::rdtime() as u64 + 12500);
+
         // 设置当前线程状态
         ctx.lock().status = Running;
         unsafe {

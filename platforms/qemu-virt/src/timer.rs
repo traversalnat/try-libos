@@ -86,8 +86,11 @@ pub fn sys_sleep(ms: u128) -> isize {
 
 /// yield
 pub fn sys_yield() {
+    // 关闭中断防止在 sepc 切换到调度器后发生时钟中断
+    let sstatus = push_off();
     let ctx = current_thread();
     unsafe {
         ctx.lock().execute_yield();
     }
+    pop_on(sstatus);
 }
