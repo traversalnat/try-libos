@@ -1,8 +1,8 @@
 #![no_std]
 
 mod ethernet;
-mod socket;
 mod net_io;
+mod socket;
 
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
@@ -102,4 +102,4 @@ pub fn sys_sock_close(sock: SocketHandle) {
 }
 
 /// async version
-pub use net_io::{async_listen, async_accept, async_send, async_recv};
+pub use net_io::{async_accept, async_listen, async_recv, async_send};

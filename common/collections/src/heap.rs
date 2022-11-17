@@ -1,7 +1,6 @@
 extern crate alloc;
-use alloc::vec::Vec;
-use core::alloc::{Allocator};
-use alloc::alloc::Global;
+use alloc::{alloc::Global, vec::Vec};
+use core::alloc::Allocator;
 
 const INITIAL_CAPACITY: usize = 7; // 2^3 - 1
 

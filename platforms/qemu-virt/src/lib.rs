@@ -27,8 +27,6 @@ pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
 
-use crate::trap::intr_off;
-
 const MM_SIZE: usize = 2 << 20;
 
 #[linkage = "weak"]

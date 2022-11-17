@@ -1,10 +1,6 @@
-use crate::{
-    sys_sock_create, sys_sock_status, ETHERNET,
-};
-use smoltcp::{
-    iface::SocketHandle,
-};
-use stdio::log::{warn};
+use crate::{sys_sock_create, sys_sock_status, ETHERNET};
+use smoltcp::iface::SocketHandle;
+use stdio::log::warn;
 
 pub struct TcpListener {
     handle: SocketHandle,
