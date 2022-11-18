@@ -3,7 +3,6 @@
 #![no_std]
 #![feature(naked_functions, asm_const)]
 #![deny(warnings, missing_docs)]
-#![feature(asm_sym)]
 extern crate alloc;
 
 use alloc::{fmt, format};

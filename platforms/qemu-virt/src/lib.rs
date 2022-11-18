@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(naked_functions, asm_sym, asm_const)]
+#![feature(naked_functions, asm_const)]
 #![feature(linkage)]
 #![feature(unboxed_closures, fn_traits)]
 #![feature(allocator_api)]
