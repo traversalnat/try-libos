@@ -43,10 +43,8 @@ pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar, KAllocator>>> =
     Lazy::new(|| Mutex::new(Heap::new_in(KAllocator)));
 
 pub(crate) fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
-    let status = push_off();
     task.lock().status = TaskStatus::Blocking;
     TIMERS.lock().push(TimerCondVar { expire_ms, task });
-    pop_on(status);
 }
 
 /// 将到时线程移动至执行线程队列
@@ -74,14 +72,17 @@ pub fn get_time_ms() -> u128 {
 }
 
 /// sleep current task
-pub fn sys_sleep(ms: u128) -> isize {
+pub fn sys_sleep(ms: u128) {
+    let status = push_off();
+
     let expire_ms = get_time_ms() + ms;
     let ctx = current_thread();
 
     move_timer(expire_ms, ctx);
 
+    pop_on(status);
+
     sys_yield();
-    0
 }
 
 /// yield

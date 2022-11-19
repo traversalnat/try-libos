@@ -82,7 +82,7 @@ extern "C" fn rust_main() -> ! {
 }
 
 extern "C" fn schedule() -> ! {
-    // 需要注意，调度器不能与线程争夺资源，包括全局内存分配器，TIMERS 的锁等
+    // 需要注意，调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
@@ -94,6 +94,12 @@ extern "C" fn schedule() -> ! {
         ctx.lock().status = Running;
         unsafe {
             ctx.lock().execute();
+        }
+
+        if ctx.is_locked() {
+            unsafe {
+                ctx.force_unlock();
+            }
         }
 
         use scause::{Interrupt, Trap};

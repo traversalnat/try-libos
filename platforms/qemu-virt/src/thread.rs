@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use crate::mm::{KAllocator, HEAP_ALLOCATOR};
+use crate::{mm::{KAllocator, HEAP_ALLOCATOR}, trap::pop_on};
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
