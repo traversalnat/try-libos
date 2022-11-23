@@ -278,6 +278,7 @@ dependencies = [
 name = "client"
 version = "0.1.0"
 dependencies = [
+ "executor",
  "mem",
  "net",
  "stdio",
@@ -823,12 +824,12 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "client",
  "executor",
  "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
- "server",
  "stdio",
  "thread",
 ]

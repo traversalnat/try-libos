@@ -4,6 +4,8 @@ mod ethernet;
 mod net_io;
 mod socket;
 
+extern crate alloc;
+use alloc::{borrow::ToOwned, fmt, format, string::String};
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
 pub use ethernet::{Duration, Instant, SocketHandle};
@@ -37,6 +39,17 @@ pub struct SocketState {
     pub can_recv: bool,
 }
 
+impl fmt::Debug for SocketState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SocketState")
+            .field("is_active", &self.is_active)
+            .field("is_listening", &self.is_listening)
+            .field("can_send", &self.can_send)
+            .field("can_recv", &self.can_recv)
+            .finish()
+    }
+}
+
 pub fn sys_sock_create() -> SocketHandle {
     ETHERNET.add_socket()
 }
@@ -53,12 +66,15 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
 pub fn sys_sock_connect(
     sock: SocketHandle,
     remote_endpoint: impl Into<IpEndpoint>,
-) -> Result<(), smoltcp::Error> {
+) -> Result<(), String> {
     if let Some(port) = ETHERNET.get_ephemeral_port() {
-        ETHERNET
-            .with_socket_and_context(sock, |socket, cx| socket.connect(cx, remote_endpoint, port))
+        return ETHERNET.with_socket_and_context(sock, |socket, cx| {
+            socket
+                .connect(cx, remote_endpoint, port)
+                .map_err(|err| format!("{:?}", err))
+        });
     } else {
-        Err(smoltcp::Error::NotSupported)
+        return Err("No ephemeral port".to_owned());
     }
 }
 
@@ -103,3 +119,4 @@ pub fn sys_sock_close(sock: SocketHandle) {
 
 /// async version
 pub use net_io::{async_accept, async_listen, async_recv, async_send};
+use stdio::log::info;

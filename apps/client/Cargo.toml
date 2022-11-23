@@ -9,3 +9,4 @@ edition = "2021"
 mem = { path = "../../common/mem" }
 net = { path = "../../libs/net" }
 stdio = { path = "../../common/stdio" }
+executor = {path = "../../common/executor"}
