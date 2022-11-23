@@ -6,6 +6,7 @@ mod socket;
 
 extern crate alloc;
 use alloc::{borrow::ToOwned, fmt, format, string::String};
+use smoltcp::socket::TcpState;
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
 pub use ethernet::{Duration, Instant, SocketHandle};
@@ -37,6 +38,7 @@ pub struct SocketState {
     pub is_listening: bool,
     pub can_send: bool,
     pub can_recv: bool,
+    pub state: TcpState,
 }
 
 impl fmt::Debug for SocketState {
@@ -46,6 +48,7 @@ impl fmt::Debug for SocketState {
             .field("is_listening", &self.is_listening)
             .field("can_send", &self.can_send)
             .field("can_recv", &self.can_recv)
+            .field("state", &self.state)
             .finish()
     }
 }
@@ -60,6 +63,7 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
         is_listening: socket.is_listening(),
         can_send: socket.can_send(),
         can_recv: socket.can_recv(),
+        state: socket.state(),
     })
 }
 
@@ -68,6 +72,7 @@ pub fn sys_sock_connect(
     remote_endpoint: impl Into<IpEndpoint>,
 ) -> Result<(), String> {
     if let Some(port) = ETHERNET.get_ephemeral_port() {
+        ETHERNET.mark_port(port).unwrap();
         return ETHERNET.with_socket_and_context(sock, |socket, cx| {
             socket
                 .connect(cx, remote_endpoint, port)

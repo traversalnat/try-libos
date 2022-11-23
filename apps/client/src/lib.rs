@@ -36,6 +36,5 @@ pub fn app_main() {
                 async_spawn(echo_client(i, receiver));
             };
         }
-        loop {}
     });
 }
