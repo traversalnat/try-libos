@@ -1,22 +1,22 @@
 #![no_std]
 
-use alloc::{borrow::ToOwned, string::String, vec};
-use executor::{async_block_on, async_spawn};
+use alloc::{string::String, vec, format};
+use executor::{async_block_on, async_spawn, async_yield};
 use log::info;
 use mem::*;
 use net::*;
 use stdio::*;
 
 async fn echo_client(index: usize, sender: SocketHandle) {
-    let mut tx: String = "hello, world".to_owned();
+    let mut tx: String = format!("{index} hello, world");
     let mut rx = vec![0 as u8; tx.len()];
     loop {
         info!("{index} try send");
         if let Some(size) = async_send(sender, unsafe { tx.as_bytes_mut() }).await {
             info!("{index} send {size} words");
         }
-        if let Some(size) = async_recv(sender, rx.as_mut_slice()).await {
-            info!("{index} receive {size} words");
+        if let Some(_) = async_recv(sender, rx.as_mut_slice()).await {
+            info!("{index} receive {tx}");
         }
         if !sys_sock_status(sender).is_active {
             info!("echo stopped");
@@ -34,6 +34,10 @@ pub fn app_main() {
             if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {
                 info!("{i} connected");
                 async_spawn(echo_client(i, receiver));
+                // wait a while
+                for _ in 1..100000 {
+                    async_yield().await;
+                }
             };
         }
     });
