@@ -124,4 +124,3 @@ pub fn sys_sock_close(sock: SocketHandle) {
 
 /// async version
 pub use net_io::{async_accept, async_listen, async_recv, async_send};
-use stdio::log::info;

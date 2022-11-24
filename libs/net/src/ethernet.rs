@@ -11,7 +11,6 @@ use smoltcp::{
 
 use spin::Mutex;
 
-use stdio::log::info;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -327,7 +326,7 @@ impl GlobalEthernetDriver {
 
     pub fn close_socket(&self, handle: SocketHandle) {
         let mut binding = self.0.lock();
-        let mut guard = binding.as_mut().expect("Uninitialized EthernetDriver");
+        let guard = binding.as_mut().expect("Uninitialized EthernetDriver");
         let socket = guard.get_socket(handle);
         let port = socket.local_endpoint().port;
         // 直接关闭 socket, 不进入 CLOSE_WAIT
