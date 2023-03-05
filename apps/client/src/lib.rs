@@ -27,7 +27,7 @@ async fn echo_client(index: usize, sender: SocketHandle) {
 }
 
 pub fn app_main() {
-    let remote_endpoint = IpEndpoint::new(IpAddress::v4(49, 235, 113, 66), 6000);
+    let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
     async_block_on(async move {
         for i in 0..10 {
             let receiver = sys_sock_create();
