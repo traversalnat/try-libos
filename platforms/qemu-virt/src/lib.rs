@@ -4,9 +4,11 @@
 #![feature(unboxed_closures, fn_traits)]
 #![feature(allocator_api)]
 
+mod async_executor;
 mod e1000;
 mod mm;
 mod pci;
+mod tasks;
 mod thread;
 mod timer;
 mod trap;
@@ -26,6 +28,10 @@ use uart_16550::MmioSerialPort;
 pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
+
+use tasks::{NUM_SLICES_LEVELS, QUEUES};
+
+use crate::tasks::add_task_to_queue;
 
 const MM_SIZE: usize = 2 << 20;
 
@@ -60,16 +66,19 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    Virt::spawn(obj_main);
+    Virt::spawn(async { obj_main() });
 
     // idle thread
-    Virt::spawn(|| loop {
-        // if net is used
-        e1000::async_recv();
+    Virt::spawn(async {
+        loop {
+            // if net is used
+            e1000::async_recv();
+        }
     });
 
-    Virt::spawn(|| loop {
-        timer::sys_yield();
+    Virt::spawn(async {
+        loop {
+        }
     });
 
     let mut t = TaskControlBlock::ZERO;
@@ -82,42 +91,48 @@ extern "C" fn rust_main() -> ! {
 }
 
 extern "C" fn schedule() -> ! {
-    // 需要注意，调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
+    // WARNING: 调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
     use TaskStatus::*;
     unsafe {
         sie::set_stimer();
     }
-    while let Some(ctx) = THREADS.pop_run() {
-        set_timer(Virt::rdtime() as u64 + 12500);
 
-        // 设置当前线程状态
-        ctx.lock().status = Running;
-        unsafe {
-            ctx.lock().execute();
+    let mut level: usize = 0;
+    loop {
+        let mut task = QUEUES.lock()[level].pop_front();
+        if task.is_none() {
+            level += 1;
+            level %= NUM_SLICES_LEVELS;
+            continue;
         }
 
-        if ctx.is_locked() {
-            unsafe {
-                ctx.force_unlock();
-            }
-        }
+        let mut task = task.unwrap();
+        let ticks = task.ticks(); // 用于task在给定时间片内是否切换协程
+
+        set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
+        task.run();
 
         use scause::{Interrupt, Trap};
         let finish = match scause::read().cause() {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 set_timer(u64::MAX);
-                check_timer(); // 检查到时线程
+                let new_ticks = task.ticks();
+                // 时间片应该降低
+                if ticks == new_ticks && task.slice != 1 {
+                    task.slice -= 1;
+                } else {
+                    task.slice += 1;
+                    task.slice %= NUM_SLICES_LEVELS;
+                }
+
+                // TODO 对于最低层 task，要切出其它协程
                 false
             }
             _ => true,
         };
 
-        if finish {
-            ctx.lock().status = Finish;
-        }
-
-        if ctx.lock().status == Running {
-            THREADS.push_run(ctx);
+        if !finish {
+            add_task_to_queue(task);
         }
     }
     log::warn!("Shutdown\n");

@@ -22,11 +22,13 @@ fn obj_main() {
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    PlatformImpl::spawn(|| loop {
-        let val = PlatformImpl::rdtime() as i64;
-        net::ETHERNET.poll(net::Instant::from_millis(val));
-        let delay = Duration::from_millis(100);
-        PlatformImpl::wait(delay);
+    PlatformImpl::spawn(async {
+        loop {
+            let val = PlatformImpl::rdtime() as i64;
+            net::ETHERNET.poll(net::Instant::from_millis(val));
+            let delay = Duration::from_millis(100);
+            PlatformImpl::wait(delay);
+        }
     });
 }
 
@@ -62,7 +64,9 @@ struct ThreadImpl;
 
 impl thread::Thread for ThreadImpl {
     fn spawn(&self, f: Box<dyn FnOnce() + Send>) {
-        PlatformImpl::spawn(f);
+        PlatformImpl::spawn(async {
+            f();
+        });
     }
 
     fn yields(&self) {

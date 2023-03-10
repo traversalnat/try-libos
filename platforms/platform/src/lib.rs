@@ -1,5 +1,7 @@
 #![no_std]
 
+use core::future::Future;
+
 pub trait Platform {
     fn console_getchar() -> u8;
     fn console_putchar(c: u8);
@@ -28,7 +30,7 @@ pub trait Platform {
     // thread
     fn spawn<F>(_f: F)
     where
-        F: FnOnce() + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
     }
 

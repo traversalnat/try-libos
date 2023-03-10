@@ -34,10 +34,6 @@ pub fn app_main() {
             if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {
                 info!("{i} connected");
                 async_spawn(echo_client(i, receiver));
-                // wait a while
-                for _ in 1..100000 {
-                    async_yield().await;
-                }
             };
         }
     });

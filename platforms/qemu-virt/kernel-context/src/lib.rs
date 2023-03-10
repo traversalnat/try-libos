@@ -167,11 +167,6 @@ impl LocalContext {
         );
         sstatus
     }
-
-    /// 主动让出 CPU
-    pub unsafe fn execute_yield(&self) {
-        yield_naked();
-    }
 }
 
 #[inline]

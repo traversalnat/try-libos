@@ -1,7 +1,8 @@
 extern crate alloc;
 
-use crate::{e1000, thread, timer};
+use crate::{e1000, tasks, thread, timer};
 use alloc::boxed::Box;
+use core::future::Future;
 use platform::Platform;
 use qemu_virt_ld as linker;
 use sbi_rt::*;
@@ -63,14 +64,14 @@ impl platform::Platform for Virt {
     #[inline]
     fn spawn<F>(f: F)
     where
-        F: FnOnce() + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
-        thread::spawn(f);
+        tasks::spawn(f);
     }
 
     #[inline]
     fn wait(_delay: core::time::Duration) {
-        timer::sys_sleep(_delay.as_millis() as _);
+        // timer::sys_sleep(_delay.as_millis() as _);
     }
 
     #[inline]
@@ -81,7 +82,8 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn frequency() -> usize {
-        timer::CLOCK_FREQ
+        // timer::CLOCK_FREQ
+        0
     }
 
     #[inline]
@@ -124,7 +126,7 @@ impl executor::Executor for Executor {
     }
 
     fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>) {
-        Virt::spawn(f);
+        Virt::spawn(async { f() });
     }
 
     fn sys_yield(&self) {

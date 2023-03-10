@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use crate::{mm::{KAllocator, HEAP_ALLOCATOR}, trap::pop_on};
+use crate::mm::KAllocator;
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
@@ -17,73 +17,7 @@ use spin::{Lazy, Mutex};
 
 const STACK_SIZE: usize = 0x8000;
 
-type TCBlock = Arc<Mutex<TaskControlBlock>>;
-
-pub struct Threads {
-    run_threads: Mutex<VecDeque<TCBlock, KAllocator>>,
-    current: Mutex<TCBlock>,
-}
-
-impl Threads {
-    pub fn new() -> Self {
-        Threads {
-            run_threads: Mutex::new(VecDeque::new_in(KAllocator)),
-            current: Mutex::new(Arc::new(Mutex::new(TaskControlBlock::ZERO))),
-        }
-    }
-
-    pub fn current(&self) -> TCBlock {
-        (*self.current.lock()).clone()
-    }
-
-    pub fn set_current(&self, ctx: TCBlock) {
-        *(self.current.lock()) = ctx;
-    }
-
-    pub fn pop_run(&self) -> Option<TCBlock> {
-        let ctx = self.run_threads.lock().pop_front();
-        if ctx.is_some() {
-            let ctx = ctx.unwrap();
-            self.set_current(Arc::clone(&ctx));
-            return Some(ctx);
-        }
-        None
-    }
-
-    pub fn peek_run(&self) -> Option<TCBlock> {
-        let lock = self.run_threads.lock();
-        let ctx = lock.front();
-        if ctx.is_some() {
-            let ctx = ctx.unwrap();
-            self.set_current(Arc::clone(ctx));
-            return Some(Arc::clone(ctx));
-        }
-        None
-    }
-
-    pub fn push_run(&self, tcx: TCBlock) {
-        self.run_threads.lock().push_back(tcx);
-    }
-}
-
-pub static THREADS: Lazy<Threads> = Lazy::new(|| Threads::new());
-
-pub fn move_run(ctx: TCBlock) {
-    ctx.lock().status = TaskStatus::Ready;
-    THREADS.push_run(ctx);
-}
-
-/// 返回当前 thread
-/// 由于 ctx.lock().excute() 执行当前线程会锁住 ctx, 这里强制 unlock
-pub fn current_thread() -> TCBlock {
-    let lock = THREADS.current();
-    if lock.is_locked() {
-        unsafe {
-            lock.force_unlock();
-        }
-    }
-    lock
-}
+pub type TCBlock = Arc<Mutex<TaskControlBlock>>;
 
 /// 线程状态
 #[derive(PartialEq, Clone, Debug)]
@@ -164,12 +98,6 @@ impl TaskControlBlock {
     pub unsafe fn execute(&mut self) {
         self.ctx.execute();
     }
-
-    /// 执行此任务。
-    #[inline]
-    pub unsafe fn execute_yield(&mut self) {
-        self.ctx.execute_yield();
-    }
 }
 
 impl Drop for TaskControlBlock {
@@ -222,7 +150,8 @@ extern "C" fn run_boxed_thread(arg: usize) {
     drop(boxed_thread_run);
 }
 
-pub fn spawn<F>(f: F)
+/// 创建一个线程，并返回 TCBlock
+pub fn spawn<F>(f: F) -> TCBlock
 where
     F: FnOnce() + Send + 'static,
 {
@@ -241,5 +170,5 @@ where
 
     t.lock().init_with_arg(run_boxed_thread as usize, arg);
 
-    THREADS.push_run(t.clone());
+    t
 }
