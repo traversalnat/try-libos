@@ -1,7 +1,7 @@
 #![no_std]
 
 use alloc::{string::String, vec, format};
-use executor::{async_block_on, async_spawn, async_yield};
+use executor::{async_block_on, async_spawn};
 use log::info;
 use mem::*;
 use net::*;

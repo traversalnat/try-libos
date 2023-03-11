@@ -3,6 +3,7 @@
 #![feature(linkage)]
 #![feature(unboxed_closures, fn_traits)]
 #![feature(allocator_api)]
+#![allow(unreachable_code)]
 
 mod async_executor;
 mod e1000;
@@ -22,7 +23,7 @@ use riscv::register::*;
 use sbi_rt::*;
 use stdio::log::{self};
 use thread::*;
-use timer::*;
+
 use uart_16550::MmioSerialPort;
 
 pub use platform::Platform;
@@ -78,9 +79,7 @@ extern "C" fn rust_main() -> ! {
 
     Virt::spawn(async {
         loop {
-            log::info!("loop begin");
             Virt::sys_yield();
-            log::info!("loop end");
         }
     });
 
@@ -89,20 +88,19 @@ extern "C" fn rust_main() -> ! {
     unsafe {
         t.execute();
     }
-    log::warn!("error Shutdown");
     unreachable!()
 }
 
 extern "C" fn schedule() -> ! {
     // WARNING: 调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
-    use TaskStatus::*;
+    
     unsafe {
         sie::set_stimer();
     }
 
     let mut level: usize = 0;
     loop {
-        let mut task = QUEUES.lock()[level].pop_front();
+        let task = QUEUES.lock()[level].pop_front();
         if task.is_none() {
             level += 1;
             level %= NUM_SLICES_LEVELS;
@@ -138,7 +136,7 @@ extern "C" fn schedule() -> ! {
             add_task_to_queue(task);
         }
     }
-    log::warn!("Shutdown\n");
+    log::error!("Shutdown\n");
     system_reset(Shutdown, NoReason);
     unreachable!()
 }

@@ -149,7 +149,7 @@ std = []
             ])
             .args([
                 "-object",
-                "filter-dump,id=net0,netdev=net0,file=packets.pcap",
+                "filter-dump,id=net0,netdev=net0,file=/Users/jackzhang/packets.pcap",
             ])
             .args(["-device", "e1000,netdev=net0"])
             .optional(&self.gdb, |qemu, gdb| {

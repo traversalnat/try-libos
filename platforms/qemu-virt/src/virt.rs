@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use crate::{e1000, tasks, thread, timer};
+use crate::{e1000, tasks, timer};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
