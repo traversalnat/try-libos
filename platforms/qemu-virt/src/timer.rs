@@ -90,8 +90,8 @@ pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar, KAllocator>>> =
 pub fn sys_yield() {
     // 关闭中断防止在 sepc 切换到调度器后发生时钟中断
     let sstatus = push_off();
-    // unsafe {
-    //     kernel_context::yield_naked();
-    // }
+    unsafe {
+        kernel_context::yield_naked();
+    }
     pop_on(sstatus);
 }

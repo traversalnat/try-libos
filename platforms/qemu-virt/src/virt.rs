@@ -75,6 +75,11 @@ impl platform::Platform for Virt {
     }
 
     #[inline]
+    fn sys_yield() {
+        timer::sys_yield();
+    }
+
+    #[inline]
     fn heap() -> (usize, usize) {
         let layout = linker::KernelLayout::locate();
         (layout.end(), MEMORY - layout.len())
@@ -82,8 +87,7 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn frequency() -> usize {
-        // timer::CLOCK_FREQ
-        0
+        timer::CLOCK_FREQ
     }
 
     #[inline]

@@ -78,6 +78,9 @@ extern "C" fn rust_main() -> ! {
 
     Virt::spawn(async {
         loop {
+            log::info!("loop begin");
+            Virt::sys_yield();
+            log::info!("loop end");
         }
     });
 
