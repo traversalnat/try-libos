@@ -34,7 +34,7 @@ pub enum TaskStatus {
 /// 包含任务的上下文、状态和资源。
 pub struct TaskControlBlock {
     /// 上下文
-    ctx: LocalContext,
+    pub ctx: LocalContext,
     /// 栈底部地址
     pub stack: usize,
     /// 返回值
@@ -130,7 +130,7 @@ where
     fn run(&mut self) {
         let closure = self.closure.take().expect("you can't run a thread twice!");
         (closure)();
-        self.tcb.lock().status = TaskStatus::Finish;
+        // self.tcb.lock().status = TaskStatus::Finish;
     }
 }
 

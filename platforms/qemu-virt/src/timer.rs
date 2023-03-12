@@ -1,12 +1,18 @@
 #![allow(unused)]
 
 extern crate alloc;
-use crate::{mm::KAllocator, tasks::{Task, add_task_to_queue}, trap::*};
+use crate::{
+    mm::KAllocator,
+    tasks::{add_task_to_queue, Task},
+    trap::*,
+    Virt,
+};
 use alloc::{collections::VecDeque, sync::Arc};
 use collections::heap::Heap;
 use core::cmp::Ordering;
 use riscv::register::*;
 use spin::{Lazy, Mutex};
+use stdio::log;
 
 pub const CLOCK_FREQ: usize = 12500000;
 const TICKS_PER_SEC: usize = 100;
@@ -14,8 +20,8 @@ const MILLI_PER_SEC: usize = 1_000;
 const MICRO_PER_SEC: usize = 1_000_000;
 
 pub struct TimerCondVar {
-    pub expire_ms: u128,
-    pub task: Arc<Mutex<Task>>,
+    pub expire_ms: usize,
+    pub task: Task,
 }
 
 impl PartialEq for TimerCondVar {
@@ -42,52 +48,51 @@ impl Ord for TimerCondVar {
 pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar, KAllocator>>> =
     Lazy::new(|| Mutex::new(Heap::new_in(KAllocator)));
 
-// pub(crate) fn move_timer(expire_ms: u128, task: Arc<Mutex<TaskControlBlock>>) {
-//     task.lock().status = TaskStatus::Blocking;
-//     TIMERS.lock().push(TimerCondVar { expire_ms, task });
-// }
-//
-// /// 将到时线程移动至执行线程队列
-// pub(crate) fn check_timer() {
-//     let current_ms = get_time_ms();
-//     let mut timers = TIMERS.lock();
-//     while let Some(cond) = timers.peek() {
-//         if cond.expire_ms <= current_ms {
-//             if let Some(task) = timers.pop() {
-//                 add_task_to_queue(task);
-//             }
-//         } else {
-//             break;
-//         }
-//     }
-// }
-//
-// /// get current time in microseconds
-// pub fn get_time_us() -> u128 {
-//     (time::read() / (CLOCK_FREQ / MICRO_PER_SEC)) as u128
-// }
-//
-// /// get current time in milliseconds
-// pub fn get_time_ms() -> u128 {
-//     (time::read() / (CLOCK_FREQ / MILLI_PER_SEC)) as u128
-// }
-//
-// /// sleep current task
-// pub fn sys_sleep(ms: u128) {
-//     let status = push_off();
-//
-//     let expire_ms = get_time_ms() + ms;
-//     // let ctx = current_thread();
-//     //
-//     // move_timer(expire_ms, ctx);
-//
-//     pop_on(status);
-//
-//     sys_yield();
-// }
+pub(crate) fn move_timer(expire_ms: usize, task: Task) {
+    TIMERS.lock().push(TimerCondVar { expire_ms, task });
+}
 
-//
+// /// 将到时线程移动至执行线程队列
+pub(crate) fn check_timer() {
+    let current_ms = get_time_ms();
+    let mut timers = TIMERS.lock();
+    while let Some(cond) = timers.peek() {
+        if cond.expire_ms <= current_ms {
+            if let Some(task) = timers.pop() {
+                add_task_to_queue(task.task);
+            }
+        } else {
+            break;
+        }
+    }
+}
+
+/// get current time in microseconds
+pub fn get_time_us() -> usize {
+    (time::read() / (CLOCK_FREQ / MICRO_PER_SEC)) as usize
+}
+
+/// get current time in milliseconds
+pub fn get_time_ms() -> usize {
+    (time::read() / (CLOCK_FREQ / MILLI_PER_SEC)) as usize
+}
+
+/// sleep current task 设计成中断
+pub fn sleep(task: Task, ms: usize) -> (Option<Task>, usize) {
+    let status = push_off();
+
+    let expire_ms = get_time_ms() + ms;
+
+    move_timer(expire_ms, task);
+
+    pop_on(status);
+    
+    (None, 0)
+}
+
 pub fn sys_yield() {
+    use crate::trap::{pop_on, push_off};
+    // warn: 系统调用（如sleep）不能调用 sys_yield
     // 关闭中断防止在 sepc 切换到调度器后发生时钟中断
     let sstatus = push_off();
     unsafe {

@@ -36,7 +36,7 @@ fn init_ethernet() {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
-    PlatformImpl::shutdown(true);
+    // PlatformImpl::shutdown(true);
     loop {}
 }
 

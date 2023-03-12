@@ -9,6 +9,7 @@ mod async_executor;
 mod e1000;
 mod mm;
 mod pci;
+mod syscall;
 mod tasks;
 mod thread;
 mod timer;
@@ -32,7 +33,7 @@ pub use virt::{Virt as PlatformImpl, MACADDR};
 
 use tasks::{NUM_SLICES_LEVELS, QUEUES};
 
-use crate::tasks::add_task_to_queue;
+use crate::{tasks::add_task_to_queue, timer::check_timer};
 
 const MM_SIZE: usize = 2 << 20;
 
@@ -79,7 +80,8 @@ extern "C" fn rust_main() -> ! {
 
     Virt::spawn(async {
         loop {
-            Virt::sys_yield();
+            syscall::sys_sleep(1000);
+            timer::sys_yield();
         }
     });
 
@@ -93,7 +95,7 @@ extern "C" fn rust_main() -> ! {
 
 extern "C" fn schedule() -> ! {
     // WARNING: 调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
-    
+
     unsafe {
         sie::set_stimer();
     }
@@ -113,27 +115,29 @@ extern "C" fn schedule() -> ! {
         set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
         task.run();
 
-        use scause::{Interrupt, Trap};
-        let finish = match scause::read().cause() {
+        use scause::{Exception, Interrupt, Trap};
+        let opt_task = match scause::read().cause() {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 set_timer(u64::MAX);
+                check_timer();
+
                 let new_ticks = task.ticks();
                 // 时间片应该降低
-                if ticks == new_ticks && task.slice != 1 {
-                    task.slice -= 1;
+                if new_ticks > ticks {
+                    task.slice = core::cmp::min(task.slice - 1, 1);
                 } else {
-                    task.slice += 1;
-                    task.slice %= NUM_SLICES_LEVELS;
+                    task.slice = core::cmp::min(task.slice + 1, 5);
                 }
 
                 // TODO 对于最低层 task，要切出其它协程
-                false
+                Some(task)
             }
-            _ => true,
+            Trap::Exception(Exception::UserEnvCall) => syscall::handle_syscall(task),
+            _ => None,
         };
 
-        if !finish {
-            add_task_to_queue(task);
+        if opt_task.is_some() {
+            add_task_to_queue(opt_task.unwrap());
         }
     }
     log::error!("Shutdown\n");

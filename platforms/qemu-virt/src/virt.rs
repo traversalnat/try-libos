@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use crate::{e1000, tasks, timer};
+use crate::{e1000, tasks, timer, syscall};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
@@ -71,7 +71,7 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn wait(_delay: core::time::Duration) {
-        // timer::sys_sleep(_delay.as_millis() as _);
+        syscall::sys_sleep(_delay.as_millis() as _);
     }
 
     #[inline]

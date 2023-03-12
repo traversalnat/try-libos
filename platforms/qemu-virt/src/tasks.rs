@@ -2,13 +2,14 @@
 
 extern crate alloc;
 
-use crate::{async_executor::Runner, mm::KAllocator, thread::TCBlock};
+use crate::{async_executor::Runner, mm::KAllocator, thread::TCBlock, syscall::handle_syscall};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use alloc::vec;
 use alloc::sync::Arc;
 use spin::{Lazy, Mutex};
 use core::future::Future;
+use stdio::log;
 
 // MLFQ 层数
 pub const NUM_SLICES_LEVELS: usize = 5;
@@ -25,8 +26,10 @@ pub static QUEUES: Lazy<Mutex<Vec<VecDeque<Task, KAllocator>, KAllocator>>> =
 
 /// Task 包含一个线程与一个协程队列
 pub struct Task {
-    tcb: TCBlock, // 线程控制块
-    ex: Arc<Mutex<Runner>>,   // 协程执行器
+    /// 线程控制块
+    pub tcb: TCBlock, 
+    /// 协程执行器
+    pub ex: Arc<Mutex<Runner>>,   
     pub slice: usize,    // 时间片数量 [1, NUM_SLICES_LEVELS]
 }
 
@@ -50,6 +53,7 @@ impl Task {
             self.tcb.lock().execute();
         }
     }
+
 }
 
 pub(crate) fn spawn<F>(f: F)
@@ -61,6 +65,7 @@ where
 
     let ex2 = ex.clone();
     let tcb = crate::thread::spawn(move || {
+        // WARN: 锁会被调度器强制释放 
         ex2.lock().run_and_sched();
     });
 

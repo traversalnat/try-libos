@@ -15,8 +15,9 @@ pub mod foreign;
 #[derive(Clone)]
 #[repr(C)]
 pub struct LocalContext {
-    sctx: usize,    // sscratch, 用于保存调度上下文 sp
-    x: [usize; 31], // x1-x31, 其中 x2 为线程上下文 sp
+    sctx: usize, // sscratch, 用于保存调度上下文 sp
+    /// 寄存器
+    pub x: [usize; 31], // x1-x31, 其中 x2 为线程上下文 sp
     sepc: usize,
     /// 是否以特权态切换。
     pub supervisor: bool,
@@ -196,4 +197,7 @@ extern "C" {
 
     /// yield
     pub fn yield_naked();
+
+    /// syscall
+    pub fn e_call();
 }

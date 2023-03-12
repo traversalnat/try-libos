@@ -23,8 +23,10 @@
 		.set n, n+1
 	.endr
 .endm
+
 	.globl yield_naked
 	.globl execute_naked
+	.globl e_call
 
 execute_naked:
 	// 位置无关加载
@@ -74,3 +76,14 @@ yield_naked:
 	csrw sepc, t0
 	j 1b
 	2:ret
+
+e_call:
+	la t0, 3f
+	csrw sepc, t0
+
+	// Set the exception code field of scause CSR to 8 (corresponding to system call exception code)
+	li t0, 8
+	csrw scause, t0
+
+	j 1b
+	3:ret
