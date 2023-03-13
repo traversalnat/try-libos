@@ -195,9 +195,6 @@ extern "C" {
     /// in `current_task_cx_ptr`.
     pub fn execute_naked();
 
-    /// yield
-    pub fn yield_naked();
-
     /// syscall
     pub fn e_call();
 }

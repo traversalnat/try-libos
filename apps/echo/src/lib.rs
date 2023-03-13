@@ -5,6 +5,8 @@ use stdio::*;
 pub fn app_main() {
     let mut buffer: [u8; 256] = [0u8; 256];
     let mut i = 0;
+
+    println!("please input");
     loop {
         let print = match get_char() {
             b'\r' | b'\n' => {

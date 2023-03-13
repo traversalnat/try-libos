@@ -28,10 +28,11 @@ pub trait Platform {
     }
 
     // thread
-    fn spawn<F>(_f: F)
+    fn spawn<F>(_f: F) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
+        0
     }
 
     fn sys_yield() {}

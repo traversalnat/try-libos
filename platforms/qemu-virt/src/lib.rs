@@ -22,7 +22,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self};
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -31,9 +31,9 @@ pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
 
-use tasks::{NUM_SLICES_LEVELS, QUEUES};
+use tasks::QUEUES;
 
-use crate::{tasks::add_task_to_queue, timer::check_timer};
+use crate::{syscall::syscall, tasks::add_task_to_queue, timer::check_timer};
 
 const MM_SIZE: usize = 2 << 20;
 
@@ -41,6 +41,10 @@ const MM_SIZE: usize = 2 << 20;
 #[no_mangle]
 fn obj_main() {
     panic!()
+}
+
+pub async fn async_obj_main() {
+    obj_main();
 }
 
 linker::boot0!(rust_main; stack = 4096 * 3);
@@ -68,22 +72,7 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    Virt::spawn(async { obj_main() });
-
-    // idle thread
-    Virt::spawn(async {
-        loop {
-            // if net is used
-            e1000::async_recv();
-        }
-    });
-
-    Virt::spawn(async {
-        loop {
-            syscall::sys_sleep(1000);
-            timer::sys_yield();
-        }
-    });
+    tasks::spawn(async_obj_main());
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -100,25 +89,23 @@ extern "C" fn schedule() -> ! {
         sie::set_stimer();
     }
 
-    let mut level: usize = 0;
+    let level: usize = 0;
     loop {
         let task = QUEUES.lock()[level].pop_front();
-        if task.is_none() {
-            level += 1;
-            level %= NUM_SLICES_LEVELS;
-            continue;
-        }
+        // TODO:  实现 MLFQ 算法
+        let mut task = task.expect("no task, Shutdown");
 
-        let mut task = task.unwrap();
         let ticks = task.ticks(); // 用于task在给定时间片内是否切换协程
 
+        info!("{} run", task.tid);
         set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
         task.run();
+        set_timer(u64::MAX);
+        info!("{} run end", task.tid);
 
         use scause::{Exception, Interrupt, Trap};
-        let opt_task = match scause::read().cause() {
+        match scause::read().cause() {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                set_timer(u64::MAX);
                 check_timer();
 
                 let new_ticks = task.ticks();
@@ -130,15 +117,17 @@ extern "C" fn schedule() -> ! {
                 }
 
                 // TODO 对于最低层 task，要切出其它协程
-                Some(task)
+                add_task_to_queue(task);
             }
-            Trap::Exception(Exception::UserEnvCall) => syscall::handle_syscall(task),
-            _ => None,
+            Trap::Exception(Exception::UserEnvCall) => {
+                if let Some(task) = syscall::handle_syscall(task) {
+                    add_task_to_queue(task);
+                }
+            }
+            _ => {
+                log::info!("{:#?}, {:x}", scause::read().cause(), sepc::read());
+            }
         };
-
-        if opt_task.is_some() {
-            add_task_to_queue(opt_task.unwrap());
-        }
     }
     log::error!("Shutdown\n");
     system_reset(Shutdown, NoReason);

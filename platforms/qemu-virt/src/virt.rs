@@ -62,11 +62,11 @@ impl platform::Platform for Virt {
 
     // thread
     #[inline]
-    fn spawn<F>(f: F)
+    fn spawn<F>(f: F) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        tasks::spawn(f);
+        tasks::spawn(f)
     }
 
     #[inline]
@@ -76,7 +76,7 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn sys_yield() {
-        timer::sys_yield();
+        syscall::sys_yield();
     }
 
     #[inline]

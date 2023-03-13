@@ -24,7 +24,6 @@
 	.endr
 .endm
 
-	.globl yield_naked
 	.globl execute_naked
 	.globl e_call
 
@@ -70,13 +69,6 @@ execute_naked:
 	// 返回调度
 	ret
 
-	/// 模拟异常发生, 将 2f 指令置为 sepc, 跳转至 1b, 返回时直接 ret
-yield_naked:
-	la t0, 2f
-	csrw sepc, t0
-	j 1b
-	2:ret
-
 e_call:
 	la t0, 3f
 	csrw sepc, t0
@@ -86,4 +78,8 @@ e_call:
 	csrw scause, t0
 
 	j 1b
-	3:ret
+
+	.align 2        
+	3:li t0, 0
+	csrw scause, t0
+	ret

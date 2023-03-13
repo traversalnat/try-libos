@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![allow(unused)]
+#![feature(fn_align)]
 
 extern crate alloc;
 
@@ -11,9 +12,12 @@ use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
 
 #[no_mangle]
+#[repr(align(2))]
 fn obj_main() {
     // 连接 platform 和 libs
+    info!("-0");
     init_ethernet();
+    info!("-1");
     thread::init(&ThreadImpl);
     // 初始化运行环境后，跳转至 app_main
     app::app_main();
@@ -36,8 +40,8 @@ fn init_ethernet() {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
-    // PlatformImpl::shutdown(true);
-    loop {}
+    PlatformImpl::shutdown(true);
+    unreachable!();
 }
 
 struct PhyNet;

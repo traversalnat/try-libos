@@ -79,24 +79,8 @@ pub fn get_time_ms() -> usize {
 
 /// sleep current task 设计成中断
 pub fn sleep(task: Task, ms: usize) -> (Option<Task>, usize) {
-    let status = push_off();
-
     let expire_ms = get_time_ms() + ms;
-
     move_timer(expire_ms, task);
-
-    pop_on(status);
-    
     (None, 0)
 }
 
-pub fn sys_yield() {
-    use crate::trap::{pop_on, push_off};
-    // warn: 系统调用（如sleep）不能调用 sys_yield
-    // 关闭中断防止在 sepc 切换到调度器后发生时钟中断
-    let sstatus = push_off();
-    unsafe {
-        kernel_context::yield_naked();
-    }
-    pop_on(sstatus);
-}

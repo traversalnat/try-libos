@@ -1,6 +1,8 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
+
+
 use core::{
     future::Future,
     pin::Pin,
@@ -11,7 +13,7 @@ use spin::Mutex;
 
 pub use futures::{self, future::poll_fn, join};
 
-type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 pub(crate) type Queue = Arc<Mutex<LinkedList<PinBoxFuture>>>;
 
@@ -44,11 +46,9 @@ impl Runner {
         Self { runtime, ticks: 0 }
     }
 
-    pub fn append<F>(&self, future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
+    pub fn append(&self, future: PinBoxFuture)
     {
-        self.runtime.task_push_back(Box::pin(future));
+        self.runtime.task_push_back(future);
     }
 
     pub fn ticks(&self) -> u8 {
@@ -74,5 +74,6 @@ impl Runner {
 
             self.ticks += 1;
         }
+
     }
 }

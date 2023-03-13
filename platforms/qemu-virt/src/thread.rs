@@ -14,6 +14,7 @@ use alloc::{
 use core::alloc::Layout;
 use kernel_context::LocalContext;
 use spin::{Lazy, Mutex};
+use stdio::log::{self, info};
 
 const STACK_SIZE: usize = 0x8000;
 
@@ -103,10 +104,8 @@ impl TaskControlBlock {
 impl Drop for TaskControlBlock {
     fn drop(&mut self) {
         if self.stack != 0 {
-            let layout = Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap();
-            let ptr = self.stack as *mut u8;
             unsafe {
-                dealloc(ptr, layout);
+                dealloc(self.stack as *mut u8, Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap());
             }
         }
     }
@@ -130,7 +129,7 @@ where
     fn run(&mut self) {
         let closure = self.closure.take().expect("you can't run a thread twice!");
         (closure)();
-        // self.tcb.lock().status = TaskStatus::Finish;
+        self.tcb.lock().status = TaskStatus::Finish;
     }
 }
 

@@ -3,11 +3,13 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use good_memory_allocator::SpinLockedAllocator;
+use buddy_system_allocator::LockedHeap;
 
 #[cfg(not(feature = "std"))]
 #[global_allocator]
-static HEAP_ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
+/// heap allocator instance
+static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+
 
 #[cfg(not(feature = "std"))]
 #[alloc_error_handler]
@@ -20,7 +22,8 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 pub fn init_heap(_heap_base: usize, _heap_size: usize) {
     #[cfg(not(feature = "std"))]
     unsafe {
-        HEAP_ALLOCATOR.init(_heap_base, _heap_size);
+        HEAP_ALLOCATOR.lock()
+            .init(_heap_base, _heap_size);
     }
 }
 

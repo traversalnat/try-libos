@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 good_memory_allocator = "0.1.7"
+buddy_system_allocator = "0.6"
 
 [features]
 default = []
