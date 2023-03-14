@@ -43,10 +43,6 @@ fn obj_main() {
     panic!()
 }
 
-pub async fn async_obj_main() {
-    obj_main();
-}
-
 linker::boot0!(rust_main; stack = 4096 * 3);
 
 extern "C" fn rust_main() -> ! {
@@ -72,7 +68,9 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    tasks::spawn(async_obj_main());
+    tasks::spawn(async {
+        obj_main();
+    });
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -100,8 +98,8 @@ extern "C" fn schedule() -> ! {
         info!("{} run", task.tid);
         set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
         task.run();
+        info!("{} runned", task.tid);
         set_timer(u64::MAX);
-        info!("{} run end", task.tid);
 
         use scause::{Exception, Interrupt, Trap};
         match scause::read().cause() {
@@ -125,7 +123,7 @@ extern "C" fn schedule() -> ! {
                 }
             }
             _ => {
-                log::info!("{:#?}, {:x}", scause::read().cause(), sepc::read());
+                log::info!("{:#?}, spec {:x}, stval {:x}", scause::read().cause(), sepc::read(), stval::read());
             }
         };
     }

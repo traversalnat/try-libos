@@ -20,10 +20,10 @@ pub const SYSCALL_EXIT: usize = 105;
 pub fn handle_syscall(task: Task) -> Option<Task> {
     let mut lock = task.tcb.lock();
     let cx = &mut lock.ctx;
-    let syscall_id = cx.x[16];
-    let arg0: usize = cx.x[9];
-    let _arg1: usize = cx.x[10];
-    let _arg2: usize = cx.x[11];
+    let syscall_id = cx.x(17);
+    let arg0: usize = cx.x(10);
+    let _arg1: usize = cx.x(11);
+    let _arg2: usize = cx.x(12);
 
     drop(lock);
 
@@ -56,7 +56,7 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
     if task.is_some() {
         let mut lock = task.as_mut().unwrap().tcb.lock();
         let mut cx = &mut lock.ctx;
-        cx.x[9] = result as usize;
+        *cx.x_mut(10) = result as usize;
     }
 
     task
