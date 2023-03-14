@@ -834,8 +834,8 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "client",
  "executor",
- "helloworld",
  "mem",
  "net",
  "qemu-virt",

@@ -79,7 +79,6 @@ e_call:
 
 	j 1b
 
-	.align 2        
 	3:li t0, 0
 	csrw scause, t0
 	ret

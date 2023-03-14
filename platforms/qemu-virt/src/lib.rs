@@ -95,10 +95,8 @@ extern "C" fn schedule() -> ! {
 
         let ticks = task.ticks(); // 用于task在给定时间片内是否切换协程
 
-        info!("{} run", task.tid);
         set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
         task.run();
-        info!("{} runned", task.tid);
 
         use scause::{Exception, Interrupt, Trap};
         match scause::read().cause() {
