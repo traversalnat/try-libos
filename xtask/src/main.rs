@@ -142,7 +142,7 @@ std = []
             .arg("-nographic")
             .arg("-kernel")
             .arg(objcopy(elf, true))
-            .args(["-m", "128M"])
+            .args(["-m", "256M"])
             .args([
                 "-netdev",
                 "user,id=net0,hostfwd=tcp::6000-:6000,hostfwd=tcp::6001-:6001",

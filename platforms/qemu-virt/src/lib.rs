@@ -33,9 +33,9 @@ pub use virt::{Virt as PlatformImpl, MACADDR};
 
 use tasks::QUEUES;
 
-use crate::{syscall::syscall, tasks::add_task_to_queue, timer::check_timer};
+use crate::{syscall::{syscall}, tasks::add_task_to_queue, timer::check_timer};
 
-const MM_SIZE: usize = 2 << 20;
+const MM_SIZE: usize = 32 << 20;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -68,8 +68,8 @@ extern "C" fn rust_main() -> ! {
     pci::pci_init();
     log::info!("init kthread");
 
-    tasks::spawn(async {
-        obj_main();
+    Virt::spawn(async {
+        obj_main()
     });
 
     let mut t = TaskControlBlock::ZERO;
@@ -99,12 +99,12 @@ extern "C" fn schedule() -> ! {
         set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
         task.run();
         info!("{} runned", task.tid);
-        set_timer(u64::MAX);
 
         use scause::{Exception, Interrupt, Trap};
         match scause::read().cause() {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 check_timer();
+                set_timer(u64::MAX);
 
                 let new_ticks = task.ticks();
                 // 时间片应该降低

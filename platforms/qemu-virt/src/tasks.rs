@@ -6,6 +6,7 @@ use crate::{
     async_executor::{PinBoxFuture, Runner},
     mm::KAllocator,
     syscall::{sys_exit, sys_get_tid},
+    thread,
     thread::TCBlock,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc, vec, vec::Vec};
@@ -73,8 +74,7 @@ where
     ex.lock().append(Box::pin(f));
 
     let ex2 = ex.clone();
-    let tcb = crate::thread::spawn(move || {
-        // WARN: 锁会被调度器强制释放
+    let tcb = thread::spawn(move || {
         ex2.lock().run_and_sched();
         sys_exit();
     });
@@ -103,8 +103,8 @@ pub fn add_task_to_queue(task: Task) {
 
 /// get task by tid
 pub fn get_task_by_tid(tid: usize) -> Option<Task> {
+    let mut lock = QUEUES.lock();
     for i in 0..NUM_SLICES_LEVELS {
-        let mut lock = QUEUES.lock();
         for j in 0..lock[i].len() {
             if lock[i][j].tid == tid {
                 lock[i].swap(0, j);
@@ -114,4 +114,20 @@ pub fn get_task_by_tid(tid: usize) -> Option<Task> {
     }
 
     None
+}
+
+/// append task (GLOBAL_BOXED_FUTURE) to task of tid
+pub fn handle_append_task(task: Task, tid: usize) -> (Task, usize) {
+    let mut ret = usize::MAX;
+
+    if tid == task.tid {
+        task.append();
+    } else {
+        if let Some(task_tid) = get_task_by_tid(tid) {
+            task_tid.append();
+            add_task_to_queue(task_tid);
+        }
+    }
+
+    (task, 0)
 }

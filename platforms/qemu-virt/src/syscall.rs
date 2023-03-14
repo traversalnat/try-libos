@@ -1,8 +1,9 @@
+#![allow(dead_code)]
 use alloc::boxed::Box;
 use stdio::log::info;
 
 use crate::{
-    tasks::{get_task_by_tid, Task, GLOBAL_BOXED_FUTURE},
+    tasks::{handle_append_task, Task, GLOBAL_BOXED_FUTURE},
     timer::sleep,
     trap::{pop_on, push_off},
 };
@@ -25,8 +26,8 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
     let _arg1: usize = cx.x(11);
     let _arg2: usize = cx.x(12);
 
+    drop(cx);
     drop(lock);
-
     // 部分系统调用需要直接用到 task, 但不一定将 task 返回
     // sleep 系统调用会将 task 插入到等待队列中
     let (mut task, result) = match syscall_id {
@@ -36,26 +37,20 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
             (Some(task), tid)
         }
         SYSCALL_APPEND_TASK => {
-            if task.tid != arg0 {
-                if let Some(t) = get_task_by_tid(arg0) {
-                    t.append();
-                }
-            } else {
-                task.append();
-            }
-            (Some(task), 0)
+            let (task, ret) = handle_append_task(task, arg0);
+            (Some(task), ret)
         }
         SYSCALL_YIELD => (Some(task), 0),
         SYSCALL_EXIT => {
             info!("task {} exit", task.tid);
             (None, 0)
-        },
+        }
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
 
     if task.is_some() {
         let mut lock = task.as_mut().unwrap().tcb.lock();
-        let mut cx = &mut lock.ctx;
+        let cx = &mut lock.ctx;
         *cx.x_mut(10) = result as usize;
     }
 
@@ -100,7 +95,10 @@ pub fn sys_append_task<F>(tid: usize, future: F) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    *GLOBAL_BOXED_FUTURE.lock() = Box::pin(future);
+    drop(core::mem::replace(
+        &mut *GLOBAL_BOXED_FUTURE.lock(),
+        Box::pin(future),
+    ));
     syscall(SYSCALL_APPEND_TASK, [tid, 0, 0])
 }
 
