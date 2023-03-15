@@ -139,10 +139,11 @@ std = []
         let elf = target.join("release").join("obj");
         Qemu::system("riscv64")
             .args(["-machine", self.plat.strip_prefix("qemu-").unwrap()])
-            .arg("-nographic")
             .arg("-kernel")
             .arg(objcopy(elf, true))
-            .args(["-m", "256M"])
+            .args(["-m", "3G"])
+            .args(["-smp", "1"])
+            .arg("-nographic")
             .args([
                 "-netdev",
                 "user,id=net0,hostfwd=tcp::6000-:6000,hostfwd=tcp::6001-:6001",
@@ -151,7 +152,7 @@ std = []
                 "-object",
                 "filter-dump,id=net0,netdev=net0,file=/Users/jackzhang/packets.pcap",
             ])
-            .args(["-device", "e1000,netdev=net0"])
+            .args(["-device", "e1000,netdev=net0,bus=pcie.0"])
             .optional(&self.gdb, |qemu, gdb| {
                 qemu.args(["-S", "-gdb", &format!("tcp::{gdb}")]);
             })

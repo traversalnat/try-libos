@@ -9,6 +9,7 @@ mod async_executor;
 mod e1000;
 mod mm;
 mod pci;
+mod plic;
 mod syscall;
 mod tasks;
 mod thread;
@@ -22,7 +23,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log::{self};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -33,7 +34,7 @@ pub use virt::{Virt as PlatformImpl, MACADDR};
 
 use tasks::QUEUES;
 
-use crate::{syscall::{syscall}, tasks::add_task_to_queue, timer::check_timer};
+use crate::{syscall::syscall, tasks::add_task_to_queue, timer::check_timer};
 
 const MM_SIZE: usize = 32 << 20;
 
@@ -50,9 +51,6 @@ extern "C" fn rust_main() -> ! {
     unsafe {
         layout.zero_bss();
     }
-
-    // common 中库由 platform 负责初始化
-    // mem
     let (heap_base, heap_size) = Virt::heap();
     mm::init_heap(heap_base, MM_SIZE);
     mem::init_heap(heap_base + MM_SIZE, heap_size - MM_SIZE);
@@ -65,12 +63,15 @@ extern "C" fn rust_main() -> ! {
 
     executor::init(&virt::Executor);
 
+    // 中断
+    // plic::plic_init();
+    // plic::plic_init_hart();
+
     pci::pci_init();
+
     log::info!("init kthread");
 
-    Virt::spawn(async {
-        obj_main()
-    });
+    Virt::spawn(async { obj_main() });
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -115,13 +116,21 @@ extern "C" fn schedule() -> ! {
                 // TODO 对于最低层 task，要切出其它协程
                 add_task_to_queue(task);
             }
+            Trap::Interrupt(Interrupt::SupervisorExternal) => {
+                panic!("External Interrupt");
+            }
             Trap::Exception(Exception::UserEnvCall) => {
                 if let Some(task) = syscall::handle_syscall(task) {
                     add_task_to_queue(task);
                 }
             }
             _ => {
-                log::info!("{:#?}, spec {:x}, stval {:x}", scause::read().cause(), sepc::read(), stval::read());
+                log::info!(
+                    "{:#?}, spec {:x}, stval {:x}",
+                    scause::read().cause(),
+                    sepc::read(),
+                    stval::read()
+                );
             }
         };
     }

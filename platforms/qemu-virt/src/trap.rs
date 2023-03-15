@@ -1,6 +1,16 @@
 #![allow(unused)]
 const SSTATUS_SIE: usize = 1 << 1; // Supervisor Interrupt Enable
 
+/// tp reg, core's hartid (core number)
+#[inline]
+fn r_tp() -> usize {
+    let ret: usize;
+    unsafe {
+        core::arch::asm!("mv {}, tp",out(reg)ret);
+    }
+    ret
+}
+
 fn r_sstatus() -> usize {
     let mut sstatus: usize;
     unsafe { core::arch::asm!("csrr {}, sstatus", out(reg) sstatus) };
@@ -29,4 +39,10 @@ pub fn push_off() -> usize {
     let sstatus = r_sstatus();
     intr_off();
     sstatus
+}
+
+/// cpu_id
+pub fn cpuid() -> usize {
+    let id = r_tp();
+    id
 }
