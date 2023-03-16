@@ -834,7 +834,7 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "echo",
+ "client",
  "executor",
  "mem",
  "net",

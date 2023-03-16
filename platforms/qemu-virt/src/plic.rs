@@ -22,6 +22,7 @@ pub const PLIC_BASE: usize = 0x0c000000;
 
 // we'll place the e1000 registers at this address.
 pub const E1000_REGS: usize = 0x40000000;
+pub const E1000_IRQ: usize = 33;
 
 // qemu -machine virt puts PCIe config space here.
 pub const ECAM: usize = 0x30000000;
@@ -57,13 +58,25 @@ pub fn plic_init() {
     // set desired IRQ priorities non-zero (otherwise disable)
     write(PLIC_BASE + (UART0_IRQ * 4) as usize, 1);
     write(PLIC_BASE + (VIRTIO0_IRQ * 4) as usize, 1);
+
+    // set PCIE IRQS (32 to 35), for e1000
+    for irq in 1..35 {
+        write(PLIC_BASE + irq * 4, 1);
+    }
 }
 
 pub fn plic_init_hart() {
-    let hart_id = unsafe { cpuid() };
+    // 目前只有一个 CPU
+    let hart_id = cpuid();
 
     // Set UART's enable bit for this hart's S-mode.
-    write(PLIC_SENABLE(hart_id), (1 << UART0_IRQ) | (1 << VIRTIO0_IRQ));
+    write(
+        PLIC_SENABLE(hart_id),
+        (1 << UART0_IRQ) | (1 << VIRTIO0_IRQ),
+    );
+
+    // e1000
+    write(PLIC_SENABLE(hart_id) + 4, 0xffffffff);
 
     // Set this hart's S-mode pirority threshold to 0.
     write(PLIC_SPRIORITY(hart_id), 0);
@@ -71,7 +84,7 @@ pub fn plic_init_hart() {
 
 /// Ask the PLIC what interrupt we should serve.
 pub fn plic_claim() -> Option<u32> {
-    let hart_id = unsafe { cpuid() };
+    let hart_id = cpuid();
     let interrupt = read(PLIC_SCLAIM(hart_id));
     if interrupt == 0 {
         None
@@ -82,7 +95,7 @@ pub fn plic_claim() -> Option<u32> {
 
 /// Tell the PLIC we've served the IRQ
 pub fn plic_complete(interrupt: u32) {
-    let hart_id = unsafe { cpuid() };
+    let hart_id = cpuid();
     write(PLIC_SCLAIM(hart_id), interrupt);
 }
 

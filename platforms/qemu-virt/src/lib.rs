@@ -23,7 +23,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self};
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -34,7 +34,13 @@ pub use virt::{Virt as PlatformImpl, MACADDR};
 
 use tasks::QUEUES;
 
-use crate::{syscall::syscall, tasks::add_task_to_queue, timer::check_timer};
+use crate::{
+    e1000::async_recv,
+    plic::{plic_claim, plic_complete, E1000_IRQ},
+    syscall::{syscall, sys_yield},
+    tasks::add_task_to_queue,
+    timer::check_timer,
+};
 
 const MM_SIZE: usize = 32 << 20;
 
@@ -63,13 +69,19 @@ extern "C" fn rust_main() -> ! {
 
     executor::init(&virt::Executor);
 
-    // 中断
-    // plic::plic_init();
-    // plic::plic_init_hart();
-
     pci::pci_init();
+    // 中断
+    plic::plic_init();
+    plic::plic_init_hart();
 
     log::info!("init kthread");
+
+    Virt::spawn(async {
+        loop {
+            async_recv();
+            sys_yield();
+        }
+    });
 
     Virt::spawn(async { obj_main() });
 
@@ -86,6 +98,7 @@ extern "C" fn schedule() -> ! {
 
     unsafe {
         sie::set_stimer();
+        sie::set_sext();
     }
 
     let level: usize = 0;
@@ -117,7 +130,14 @@ extern "C" fn schedule() -> ! {
                 add_task_to_queue(task);
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                panic!("External Interrupt");
+                if let Some(irq) = plic_claim() {
+                    match irq as usize {
+                        E1000_IRQ => {}
+                        _ => {}
+                    }
+                    plic_complete(irq);
+                }
+                add_task_to_queue(task);
             }
             Trap::Exception(Exception::UserEnvCall) => {
                 if let Some(task) = syscall::handle_syscall(task) {

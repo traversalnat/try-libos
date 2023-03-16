@@ -11,6 +11,16 @@ fn r_tp() -> usize {
     ret
 }
 
+/// need read mhartid to tp in machine mode
+#[inline]
+fn r_mhartid() -> usize {
+    let ret: usize;
+    unsafe {
+        core::arch::asm!("csrr {}, mhartid",out(reg)ret);
+    }
+    ret
+}
+
 fn r_sstatus() -> usize {
     let mut sstatus: usize;
     unsafe { core::arch::asm!("csrr {}, sstatus", out(reg) sstatus) };
@@ -41,8 +51,8 @@ pub fn push_off() -> usize {
     sstatus
 }
 
-/// cpu_id
+/// tp 需要在 M 态就从 hartid 寄存器保存至每一个CPU 的 tp 寄存器中
+/// cpu_id, 目前只有一个 CPU，返回0
 pub fn cpuid() -> usize {
-    let id = r_tp();
-    id
+    0
 }
