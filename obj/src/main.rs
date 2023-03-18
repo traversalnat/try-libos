@@ -6,7 +6,8 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::time::Duration;
+use core::pin::Pin;
+use core::{future::Future, time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
@@ -64,10 +65,11 @@ impl net::PhyNet for PhyNet {
 struct ThreadImpl;
 
 impl thread::Thread for ThreadImpl {
-    fn spawn(&self, f: Box<dyn FnOnce() + Send>) {
-        PlatformImpl::spawn(async {
-            f();
-        });
+    fn spawn(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize {
+        PlatformImpl::spawn(f)
+    }
+    fn append_task(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize {
+        PlatformImpl::append_task(f)
     }
 
     fn yields(&self) {

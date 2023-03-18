@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use crate::{e1000, tasks, timer, syscall};
+use crate::{e1000, tasks, timer, syscall::{self, sys_get_tid, sys_append_task}};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
@@ -67,6 +67,15 @@ impl platform::Platform for Virt {
         F: Future<Output = ()> + Send + 'static,
     {
         tasks::spawn(f)
+    }
+
+    // append_task to current thread
+    fn append_task<F>(_f: F) -> usize
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let tid = sys_get_tid();
+        sys_append_task(tid, _f)
     }
 
     #[inline]

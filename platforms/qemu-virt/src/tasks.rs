@@ -122,12 +122,14 @@ pub fn handle_append_task(task: Task, tid: usize) -> (Task, usize) {
 
     if tid == task.tid {
         task.append();
+        ret = tid;
     } else {
         if let Some(task_tid) = get_task_by_tid(tid) {
+            ret = tid;
             task_tid.append();
             add_task_to_queue(task_tid);
         }
     }
 
-    (task, 0)
+    (task, ret)
 }

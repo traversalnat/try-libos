@@ -18,6 +18,7 @@ members = [
     "apps/echo",
     "apps/server",
     "apps/client",
+    "apps/benchmark",
     "obj",
 ]
 default-members = ["xtask"]

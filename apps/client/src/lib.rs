@@ -1,7 +1,7 @@
 #![no_std]
 
 use alloc::{string::String, vec, format};
-use executor::{async_block_on, async_spawn};
+use thread::{spawn, append_task, yields};
 use log::info;
 use mem::*;
 use net::*;
@@ -28,13 +28,14 @@ async fn echo_client(index: usize, sender: SocketHandle) {
 
 pub fn app_main() {
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
-    async_block_on(async move {
+    let id = spawn(async move {
         for i in 0..10 {
             let receiver = sys_sock_create();
             if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {
-                info!("{i} connected");
-                async_spawn(echo_client(i, receiver));
+                let tid = append_task(echo_client(i, receiver));
+                info!("{i} connected in {tid}");
             };
         }
     });
+    info!("create thread {id}");
 }

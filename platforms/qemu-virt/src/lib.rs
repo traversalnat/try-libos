@@ -23,7 +23,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log;
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -37,7 +37,7 @@ use tasks::QUEUES;
 use crate::{
     e1000::async_recv,
     plic::{plic_claim, plic_complete, E1000_IRQ},
-    syscall::{syscall, sys_yield},
+    syscall::{sys_yield},
     tasks::add_task_to_queue,
     timer::check_timer,
 };

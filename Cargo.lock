@@ -161,6 +161,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
+name = "benchmark"
+version = "0.1.0"
+
+[[package]]
 name = "bimap"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -287,10 +291,10 @@ dependencies = [
 name = "client"
 version = "0.1.0"
 dependencies = [
- "executor",
  "mem",
  "net",
  "stdio",
+ "thread",
 ]
 
 [[package]]

@@ -34,6 +34,15 @@ pub trait Platform {
     {
         0
     }
+    
+    // append_task to current thread
+    fn append_task<F>(_f: F) -> usize
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        0
+    }
+
 
     fn sys_yield() {}
 
