@@ -31,7 +31,7 @@ pub fn app_main() {
     let id = spawn(async move {
         for i in 0..10 {
             let receiver = sys_sock_create();
-            if let Ok(_) = sys_sock_connect(receiver, remote_endpoint) {
+            if let Ok(_) = async_connect(receiver, remote_endpoint).await {
                 let tid = append_task(echo_client(i, receiver));
                 info!("{i} connected in {tid}");
             };

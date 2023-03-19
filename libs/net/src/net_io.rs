@@ -3,6 +3,8 @@ use core::{
     task::{Context, Poll},
 };
 
+use stdio::log::info;
+
 use crate::*;
 
 fn async_accept_poll(_cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
@@ -51,4 +53,24 @@ fn async_send_poll(
 
 pub async fn async_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
     poll_fn(|cx| async_send_poll(cx, sock, va)).await
+}
+
+fn async_connect_poll(
+    _cx: &mut Context<'_>,
+    sock: SocketHandle,
+    remote_endpoint: IpEndpoint,
+) -> Poll<()> {
+    if sys_sock_status(sock).is_establised {
+        info!("Established of connect poll");
+        Poll::Ready(())
+    } else {
+        Poll::Pending
+    }
+}
+
+pub async fn async_connect(sock: SocketHandle, remote_endpoint: IpEndpoint) -> Result<(), String> {
+    match sys_sock_connect(sock, remote_endpoint) {
+        Ok(()) => Ok(poll_fn(|cx| async_connect_poll(cx, sock, remote_endpoint)).await),
+        Err(e) => Err(e),
+    }
 }

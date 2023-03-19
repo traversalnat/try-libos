@@ -6,9 +6,9 @@ mod socket;
 
 extern crate alloc;
 use alloc::{borrow::ToOwned, fmt, format, string::String};
-use smoltcp::socket::TcpState;
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
+pub use smoltcp::socket::TcpState;
 pub use ethernet::{Duration, Instant, SocketHandle};
 pub use smoltcp::wire::{IpAddress, IpEndpoint};
 pub use socket::TcpListener;
@@ -36,6 +36,7 @@ pub fn init(net: &'static dyn PhyNet, macaddr: &[u8; 6]) {
 pub struct SocketState {
     pub is_active: bool,
     pub is_listening: bool,
+    pub is_establised: bool,
     pub can_send: bool,
     pub can_recv: bool,
     pub state: TcpState,
@@ -46,6 +47,7 @@ impl fmt::Debug for SocketState {
         f.debug_struct("SocketState")
             .field("is_active", &self.is_active)
             .field("is_listening", &self.is_listening)
+            .field("is_establised", &self.is_establised)
             .field("can_send", &self.can_send)
             .field("can_recv", &self.can_recv)
             .field("state", &self.state)
@@ -61,6 +63,7 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
     ETHERNET.with_socket(sock, |socket| SocketState {
         is_active: socket.is_active(),
         is_listening: socket.is_listening(),
+        is_establised: socket.state() == TcpState::Established,
         can_send: socket.can_send(),
         can_recv: socket.can_recv(),
         state: socket.state(),
@@ -123,4 +126,4 @@ pub fn sys_sock_close(sock: SocketHandle) {
 }
 
 /// async version
-pub use net_io::{async_accept, async_listen, async_recv, async_send};
+pub use net_io::*;
