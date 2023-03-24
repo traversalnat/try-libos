@@ -1,24 +1,21 @@
 extern crate alloc;
 
-use crate::{e1000, tasks, timer, syscall::{self, sys_get_tid, sys_append_task}};
+use crate::{
+    e1000,
+    tasks, timer,
+};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
-use qemu_virt_ld as linker;
+
 use sbi_rt::*;
 use spin::Once;
 use uart_16550::MmioSerialPort;
 
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 
-// 物理内存容量
-const MEMORY: usize = 128 << 20 - 1;
-
 pub struct Virt;
 
-// unsafe: 暂时未找到使用 Mutex 很好的办法
-// 1. 自定义 Mutex, 在 lock 失败时让出 CPU
-// 2. 使用 try_lock, lock 失败让出 CPU
 static mut UART0: Once<MmioSerialPort> = Once::new();
 
 pub fn init(uart: MmioSerialPort) {
@@ -66,32 +63,28 @@ impl platform::Platform for Virt {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        tasks::spawn(f)
+        tasks::spawn(f);
+        0
     }
 
     // append_task to current thread
-    fn append_task<F>(_f: F) -> usize
+    fn append_task<F>(f: F) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let tid = sys_get_tid();
-        sys_append_task(tid, _f)
+        tasks::spawn(f);
+        0
     }
 
     #[inline]
-    fn wait(_delay: core::time::Duration) {
-        syscall::sys_sleep(_delay.as_millis() as _);
-    }
+    fn wait(_delay: core::time::Duration) {}
 
     #[inline]
-    fn sys_yield() {
-        syscall::sys_yield();
-    }
+    fn sys_yield() {}
 
     #[inline]
     fn heap() -> (usize, usize) {
-        let layout = linker::KernelLayout::locate();
-        (layout.end(), MEMORY - layout.len())
+        (0, 0)
     }
 
     #[inline]
@@ -142,7 +135,5 @@ impl executor::Executor for Executor {
         Virt::spawn(async { f() });
     }
 
-    fn sys_yield(&self) {
-        Virt::sys_yield();
-    }
+    fn sys_yield(&self) {}
 }

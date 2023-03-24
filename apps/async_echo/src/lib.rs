@@ -3,7 +3,7 @@ use executor::{Runner, async_yield};
 use stdio::*;
 use spin::Lazy;
 
-pub fn app_main() {
+pub async fn app_main() {
     println!("async echo");
 
     static EX: Lazy<Runner> = Lazy::new(|| Runner::new());

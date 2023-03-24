@@ -6,6 +6,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use executor::{async_spawn, async_yield};
 use core::pin::Pin;
 use core::{future::Future, time::Duration};
 
@@ -13,11 +14,10 @@ use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
 
 #[no_mangle]
-#[repr(align(2))]
 fn obj_main() {
     init_ethernet();
     thread::init(&ThreadImpl);
-    app::app_main();
+    PlatformImpl::spawn(app::app_main());
 }
 
 fn init_ethernet() {
@@ -27,8 +27,7 @@ fn init_ethernet() {
         loop {
             let val = PlatformImpl::rdtime() as i64;
             net::ETHERNET.poll(net::Instant::from_millis(val));
-            let delay = Duration::from_millis(100);
-            PlatformImpl::wait(delay);
+            async_yield();
         }
     });
 }
@@ -38,8 +37,6 @@ fn init_ethernet() {
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
     loop {}
-    // PlatformImpl::shutdown(true);
-    // unreachable!();
 }
 
 struct PhyNet;

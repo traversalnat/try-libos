@@ -1,9 +1,7 @@
 extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
-    collections::LinkedList,
     vec,
-    vec::Vec,
 };
 use core::alloc::Layout;
 use isomorphic_drivers::{
@@ -11,8 +9,6 @@ use isomorphic_drivers::{
     provider,
 };
 use spin::{Lazy, Mutex};
-
-static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
 // pub const E1000_IRQ: usize = 33;
 
@@ -38,7 +34,7 @@ impl provider::Provider for Provider {
 pub static E1000_DRIVER: Lazy<Mutex<Option<E1000<Provider>>>> = Lazy::new(|| Mutex::new(None));
 
 pub fn init(header: usize, size: usize) {
-    let e1000 = E1000::new(
+    let e1000 = E1000::<Provider>::new(
         header,
         size,
         DriverEthernetAddress::from_bytes(&crate::MACADDR),
@@ -48,6 +44,7 @@ pub fn init(header: usize, size: usize) {
     *lock = Some(e1000);
 }
 
+/// data arrival
 pub fn handle_interrupt() -> bool {
     E1000_DRIVER
         .lock()
@@ -56,29 +53,21 @@ pub fn handle_interrupt() -> bool {
         .handle_interrupt()
 }
 
-pub fn recv(buf: &mut [u8]) -> usize {
-    if let Some(block) = RECV_RING.lock().pop_front() {
-        let len = core::cmp::min(buf.len(), block.len());
-        buf[..len].copy_from_slice(&block[..len]);
-        return len;
-    }
-    0
-}
-
-/// 中断来临时，负责收取
-pub fn async_recv() {
+pub fn recv(_buf: &mut [u8]) -> usize {
     if handle_interrupt() {
-        while let Some(block) = E1000_DRIVER
+        if let Some(block) = E1000_DRIVER
             .lock()
             .as_mut()
             .expect("E1000 Driver uninit")
             .receive()
         {
-            let mut buf = vec![0u8; block.len()];
+            let len = block.len();
+            let mut buf = vec![0u8; len];
             buf.copy_from_slice(&block);
-            RECV_RING.lock().push_back(buf);
+            return len;
         }
     }
+    0
 }
 
 pub fn can_send() -> bool {
@@ -90,7 +79,7 @@ pub fn can_send() -> bool {
 }
 
 pub fn can_recv() -> bool {
-    !RECV_RING.lock().is_empty()
+    handle_interrupt()
 }
 
 pub fn send(buf: &[u8]) {

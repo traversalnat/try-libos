@@ -15,6 +15,7 @@ members = [
     "platforms/qemu-sifive_u",
     "platforms/qemu-sifive_u-ld",
     "apps/helloworld",
+    "apps/async_echo",
     "apps/echo",
     "apps/server",
     "apps/client",

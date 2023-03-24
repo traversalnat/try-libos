@@ -3,7 +3,8 @@
 pub extern crate alloc;
 
 use alloc::vec;
-use executor::{async_block_on, async_spawn};
+use executor::async_block_on;
+use thread::append_task;
 
 use net::*;
 use stdio::{log::info, *};
@@ -32,7 +33,7 @@ pub fn app_main() {
         let mut listener = async_listen(6000).await.unwrap();
         loop {
             let sender = async_accept(&mut listener).await;
-            async_spawn(echo(sender));
+            append_task(echo(sender));
         }
     });
 }

@@ -11,6 +11,7 @@ use smoltcp::{
 
 use spin::Mutex;
 
+use stdio::log::info;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -120,14 +121,9 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
-    // let ip_addrs = [IpCidr::new(Ipv4Address::new(10, 0, 2, 15).into(), 16)];
-    // let ip_addrs = [IpCidr::new(Ipv4Address::new(192, 168, 1, 114).into(), 24)];
-    // let default_route = Ipv4Address::new(10, 0, 2, 2);
-    // let default_route = Ipv4Address::new(192, 168, 1, 1);
+    let ip_addrs = vec![IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
     let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
-    // routes.add_default_ipv4_route(default_route);
 
     smoltcp::iface::InterfaceBuilder::new(device, vec![])
         .hardware_addr(hw_addr.into())
