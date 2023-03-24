@@ -10,7 +10,6 @@ sbi-rt = {version="0.0.2" , features = ["legacy"]}
 uart_16550 = "0.2.18"
 spin = "0.9.4"
 riscv = "0.9.0"
-good_memory_allocator = "0.1.7"
 
 platform = { path = "../platform" }
 qemu-virt-ld = { path = "../qemu-virt-ld"}
@@ -24,7 +23,8 @@ virtio-drivers = "0.1.0"
 dtb-walker = "0.1.3"
 stdio = {path = "../../common/stdio"}
 
-isomorphic_drivers = { git = "https://github.com/rcore-os/isomorphic_drivers", rev = "f7cd97a", features = ["log"] }
+e1000-driver = {git = "https://github.com/elliott10/e1000-driver", rev = "6f29c36"}
+
 volatile = "0.3"
 
 # async_executor 

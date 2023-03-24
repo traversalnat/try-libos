@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 
 // 物理内存容量
-// const KERNEL_HEAP_SIZE: usize = 0x30_0000;
-// static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+const KERNEL_HEAP_SIZE: usize = 0x30_0000;
+static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 use buddy_system_allocator::LockedHeap;
 
@@ -14,11 +14,11 @@ use buddy_system_allocator::LockedHeap;
 /// heap allocator instance
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 /// initiate heap allocator
-pub fn init_heap(base: usize, len: usize) {
+pub fn init_heap() {
     #[cfg(not(feature = "std"))]
     unsafe {
         HEAP_ALLOCATOR.lock()
-            .init(base, len);
+            .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
     }
 }
 

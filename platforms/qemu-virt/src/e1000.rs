@@ -1,44 +1,51 @@
 extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
-    vec,
+    vec::{self, Vec},
 };
 use core::alloc::Layout;
-use isomorphic_drivers::{
-    net::ethernet::{intel::e1000::E1000, structs::EthernetAddress as DriverEthernetAddress},
-    provider,
-};
+use e1000_driver::e1000::{E1000Device as E1000, KernelFunc};
+
 use spin::{Lazy, Mutex};
+use stdio::log::info;
 
 // pub const E1000_IRQ: usize = 33;
 
 pub struct Provider;
 
-impl provider::Provider for Provider {
+impl KernelFunc for Provider {
     const PAGE_SIZE: usize = 4096;
 
-    fn alloc_dma(size: usize) -> (usize, usize) {
-        let layout = Layout::from_size_align(size, Self::PAGE_SIZE).unwrap();
-        let paddr = unsafe { alloc(layout) as usize };
+    fn dma_alloc_coherent(&mut self, pages: usize) -> (usize, usize) {
+        let paddr = unsafe {
+            alloc(Layout::from_size_align(pages * Self::PAGE_SIZE, Self::PAGE_SIZE).unwrap())
+                as usize
+        };
         (paddr, paddr)
     }
 
-    fn dealloc_dma(vaddr: usize, size: usize) {
-        let layout = Layout::from_size_align(size, Self::PAGE_SIZE).unwrap();
+    fn dma_free_coherent(&mut self, vaddr: usize, pages: usize) {
         unsafe {
-            dealloc(vaddr as *mut u8, layout);
+            dealloc(
+                vaddr as *mut u8,
+                Layout::from_size_align(pages * Self::PAGE_SIZE, Self::PAGE_SIZE).unwrap(),
+            );
         }
     }
 }
 
 pub static E1000_DRIVER: Lazy<Mutex<Option<E1000<Provider>>>> = Lazy::new(|| Mutex::new(None));
 
-pub fn init(header: usize, size: usize) {
-    let e1000 = E1000::<Provider>::new(
-        header,
-        size,
-        DriverEthernetAddress::from_bytes(&crate::MACADDR),
-    );
+pub fn init() {
+    e1000_driver::pci::pci_init();
+
+    let provider = Provider {};
+
+    let e1000 = e1000_driver::e1000::E1000Device::<Provider>::new(
+        provider,
+        e1000_driver::pci::E1000_REGS as usize,
+    )
+    .unwrap();
 
     let mut lock = E1000_DRIVER.lock();
     *lock = Some(e1000);
@@ -46,40 +53,35 @@ pub fn init(header: usize, size: usize) {
 
 /// data arrival
 pub fn handle_interrupt() -> bool {
-    E1000_DRIVER
+    true
+}
+
+static RING: Lazy<Mutex<Vec<Vec<u8>>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+pub fn recv(buf: &mut [u8]) -> usize {
+    if let Some(mut packets) = E1000_DRIVER
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")
-        .handle_interrupt()
-}
+        .e1000_recv()
+    {
+        RING.lock().append(&mut packets);
+    }
 
-pub fn recv(_buf: &mut [u8]) -> usize {
-    if handle_interrupt() {
-        if let Some(block) = E1000_DRIVER
-            .lock()
-            .as_mut()
-            .expect("E1000 Driver uninit")
-            .receive()
-        {
-            let len = block.len();
-            let mut buf = vec![0u8; len];
-            buf.copy_from_slice(&block);
-            return len;
-        }
+    if let Some(packet) = RING.lock().pop() {
+        let len = packet.len();
+        buf[..len].copy_from_slice(&packet);
+        return len;
     }
     0
 }
 
 pub fn can_send() -> bool {
-    E1000_DRIVER
-        .lock()
-        .as_mut()
-        .expect("E1000 Driver uninit")
-        .can_send()
+    true
 }
 
 pub fn can_recv() -> bool {
-    handle_interrupt()
+    true
 }
 
 pub fn send(buf: &[u8]) {
@@ -87,5 +89,5 @@ pub fn send(buf: &[u8]) {
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")
-        .send(buf);
+        .e1000_transmit(buf);
 }

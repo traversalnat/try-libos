@@ -429,6 +429,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc3a45c340447805972e5f53bf10e7118d8333bfb779f9c0ba7ec6ea30d40cd8"
 
 [[package]]
+name = "e1000-driver"
+version = "0.1.0"
+source = "git+https://github.com/elliott10/e1000-driver?rev=6f29c36#6f29c36e5c0c24c72f091d45d8327e9c941aac0b"
+dependencies = [
+ "log",
+ "volatile 0.3.0",
+]
+
+[[package]]
 name = "echo"
 version = "0.1.0"
 dependencies = [
@@ -641,6 +650,7 @@ checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 name = "helloworld"
 version = "0.1.0"
 dependencies = [
+ "mem",
  "stdio",
 ]
 
@@ -693,18 +703,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f84f1612606f3753f205a4e9a2efd6fe5b4c573a6269b2cc6c3003d44a0d127"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "isomorphic_drivers"
-version = "0.1.0"
-source = "git+https://github.com/rcore-os/isomorphic_drivers?rev=f7cd97a#f7cd97a867057142f06de7f254accf7960514a79"
-dependencies = [
- "bit_field",
- "bitflags",
- "log",
- "spin 0.9.4",
- "volatile 0.3.0",
 ]
 
 [[package]]
@@ -848,8 +846,8 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "client",
  "executor",
- "helloworld",
  "mem",
  "net",
  "qemu-virt",
@@ -1068,10 +1066,9 @@ dependencies = [
  "async-task 1.3.1",
  "collections",
  "dtb-walker",
+ "e1000-driver",
  "executor",
  "futures",
- "good_memory_allocator",
- "isomorphic_drivers",
  "kernel-context",
  "mem",
  "platform",

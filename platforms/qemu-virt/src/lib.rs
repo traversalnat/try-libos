@@ -7,14 +7,12 @@
 
 mod async_utils;
 mod e1000;
-mod pci;
 mod tasks;
 mod timer;
 mod virt;
 
 extern crate alloc;
-use alloc::vec::Vec;
-use alloc::vec;
+
 use core::time::Duration;
 use stdio::log::info;
 
@@ -25,6 +23,8 @@ use uart_16550::MmioSerialPort;
 pub use platform::Platform;
 
 pub use virt::{Virt as PlatformImpl, MACADDR};
+
+use riscv::register::*;
 
 #[linkage = "weak"]
 #[no_mangle]
@@ -38,9 +38,13 @@ extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
     unsafe {
         layout.zero_bss();
+        stvec::write(
+            show_me_the_reason  as usize,
+            stvec::TrapMode::Direct,
+        );
     }
 
-    mem::init_heap(layout.end(), 0x30_0000);
+    mem::init_heap();
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
@@ -48,20 +52,32 @@ extern "C" fn rust_main() -> ! {
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&virt::Stdio);
 
-    pci::pci_init();
+    e1000::init();
 
     obj_main();
 
     tasks::block_on(async {
         loop {
             tasks::spawn(async {
-                let mut v = vec![1];
-                v.push(2);
-                info!("async block on {}", v[1]);
+                info!("async block on");
             });
             async_utils::async_wait(Duration::from_secs(1)).await;
         }
     });
 
     unreachable!()
+}
+
+pub fn show_me_the_reason() {
+    match scause::read().cause() {
+        _ => {
+            info!(
+                "{:#?}, spec {:x}, stval {:x}",
+                scause::read().cause(),
+                sepc::read(),
+                stval::read()
+            );
+        }
+    };
+    loop {}
 }

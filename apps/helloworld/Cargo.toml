@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 stdio = { path = "../../common/stdio" }
+mem = {path = "../../common/mem"}

@@ -121,7 +121,7 @@ pub fn create_interface(macaddr: &[u8; 6]) -> Interface<NetDevice> {
     let device = NetDevice::new(Medium::Ethernet);
     let hw_addr = smoltcp::wire::EthernetAddress::from_bytes(macaddr);
     let neighbor_cache = smoltcp::iface::NeighborCache::new(BTreeMap::new());
-    let ip_addrs = vec![IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
+    let ip_addrs = [IpCidr::new(Ipv4Address::UNSPECIFIED.into(), 0)];
     static mut ROUTES_STORAGE: [Option<(IpCidr, Route)>; 1] = [None; 1];
     let routes = unsafe { Routes::new(&mut ROUTES_STORAGE[..]) };
 

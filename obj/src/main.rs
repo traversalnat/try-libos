@@ -3,7 +3,7 @@
 #![allow(unused)]
 #![feature(fn_align)]
 
-extern crate alloc;
+pub extern crate alloc;
 
 use alloc::boxed::Box;
 use executor::{async_spawn, async_yield};
@@ -15,8 +15,8 @@ use stdio::log::info;
 
 #[no_mangle]
 fn obj_main() {
+    info!("init_ethernet");
     init_ethernet();
-    thread::init(&ThreadImpl);
     PlatformImpl::spawn(app::app_main());
 }
 
