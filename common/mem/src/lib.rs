@@ -3,38 +3,34 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-// 物理内存容量
-const KERNEL_HEAP_SIZE: usize = 0x30_0000;
-static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
-
-use buddy_system_allocator::LockedHeap;
-
-#[cfg(not(feature = "std"))]
-#[global_allocator]
-/// heap allocator instance
-static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
-/// initiate heap allocator
-pub fn init_heap() {
-    #[cfg(not(feature = "std"))]
-    unsafe {
-        HEAP_ALLOCATOR.lock()
-            .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
-    }
-}
-
-// use good_memory_allocator::SpinLockedAllocator;
+// use buddy_system_allocator::LockedHeap;
 //
 // #[cfg(not(feature = "std"))]
 // #[global_allocator]
-// static HEAP_ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
-//
-//
-// /// initiate heap allocator used by dispatcher
-// pub fn init_heap() {
+// /// heap allocator instance
+// static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+// /// initiate heap allocator
+// pub fn init_heap(_heap_base: usize, _heap_size: usize) {
+//     #[cfg(not(feature = "std"))]
 //     unsafe {
-//         HEAP_ALLOCATOR.init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
+//         HEAP_ALLOCATOR.lock()
+//             .init(_heap_base, _heap_size);
 //     }
 // }
+
+
+use good_memory_allocator::SpinLockedAllocator;
+
+#[cfg(not(feature = "std"))]
+#[global_allocator]
+static HEAP_ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
+
+/// initiate heap allocator used by dispatcher
+pub fn init_heap(_heap_base: usize, _heap_size: usize) {
+    unsafe {
+        HEAP_ALLOCATOR.init(_heap_base, _heap_size);
+    }
+}
 
 #[cfg(not(feature = "std"))]
 #[alloc_error_handler]

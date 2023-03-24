@@ -44,7 +44,8 @@ extern "C" fn rust_main() -> ! {
         );
     }
 
-    mem::init_heap();
+    let (base, len) = virt::Virt::heap();
+    mem::init_heap(base, len);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
@@ -56,14 +57,14 @@ extern "C" fn rust_main() -> ! {
 
     obj_main();
 
-    tasks::block_on(async {
-        loop {
-            tasks::spawn(async {
-                info!("async block on");
-            });
-            async_utils::async_wait(Duration::from_secs(1)).await;
-        }
-    });
+    // tasks::block_on(async {
+    //     loop {
+    //         tasks::spawn(async {
+    //             info!("async block on");
+    //         });
+    //         async_utils::async_wait(Duration::from_secs(1)).await;
+    //     }
+    // });
 
     unreachable!()
 }

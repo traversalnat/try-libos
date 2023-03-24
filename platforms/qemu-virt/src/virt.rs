@@ -1,9 +1,6 @@
 extern crate alloc;
 
-use crate::{
-    e1000,
-    tasks, timer,
-};
+use crate::{e1000, tasks, timer};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
@@ -11,12 +8,15 @@ use platform::Platform;
 use sbi_rt::*;
 use spin::Once;
 use uart_16550::MmioSerialPort;
+use qemu_virt_ld as linker;
 
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 
 pub struct Virt;
 
 static mut UART0: Once<MmioSerialPort> = Once::new();
+
+const MEMORY: usize = 128 << 20 - 1;
 
 pub fn init(uart: MmioSerialPort) {
     unsafe {
@@ -84,7 +84,8 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn heap() -> (usize, usize) {
-        (0, 0)
+        let layout = linker::KernelLayout::locate();
+        (layout.end(), MEMORY - layout.len())
     }
 
     #[inline]

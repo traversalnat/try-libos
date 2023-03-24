@@ -15,7 +15,6 @@ use stdio::log::info;
 
 #[no_mangle]
 fn obj_main() {
-    info!("init_ethernet");
     init_ethernet();
     PlatformImpl::spawn(app::app_main());
 }
