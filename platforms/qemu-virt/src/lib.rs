@@ -40,7 +40,7 @@ extern "C" fn rust_main() -> ! {
         layout.zero_bss();
     }
 
-    mem::init_heap();
+    mem::init_heap(layout.end(), 0x30_0000);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
