@@ -13,7 +13,7 @@ mod virt;
 
 extern crate alloc;
 
-use core::time::Duration;
+
 use stdio::log::info;
 
 use qemu_virt_ld as linker;
@@ -32,6 +32,9 @@ fn obj_main() {
     panic!()
 }
 
+const KERNEL_HEAP_SIZE: usize = 128 << 20;
+static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+
 linker::boot0!(rust_main; stack = 4096 * 3);
 
 extern "C" fn rust_main() -> ! {
@@ -44,10 +47,11 @@ extern "C" fn rust_main() -> ! {
         );
     }
 
-    let (base, len) = virt::Virt::heap();
-    mem::init_heap(base, len);
-
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
+
+    unsafe {
+        mem::init_heap(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
+    }
 
     // stdio
     stdio::set_log_level(option_env!("LOG"));
@@ -55,6 +59,7 @@ extern "C" fn rust_main() -> ! {
 
     e1000::init();
 
+    info!("obj_main()");
     obj_main();
 
     // tasks::block_on(async {

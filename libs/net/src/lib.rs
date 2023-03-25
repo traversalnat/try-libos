@@ -6,6 +6,7 @@ mod socket;
 
 extern crate alloc;
 use alloc::{borrow::ToOwned, fmt, format, string::String};
+use stdio::log::info;
 use core::result::Result;
 use ethernet::GlobalEthernetDriver;
 pub use smoltcp::socket::TcpState;

@@ -1,13 +1,13 @@
 extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
-    vec::{self, Vec},
+    vec::{Vec},
 };
 use core::alloc::Layout;
 use e1000_driver::e1000::{E1000Device as E1000, KernelFunc};
 
 use spin::{Lazy, Mutex};
-use stdio::log::info;
+
 
 // pub const E1000_IRQ: usize = 33;
 

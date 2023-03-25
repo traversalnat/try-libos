@@ -2,6 +2,7 @@
 #![no_main]
 #![allow(unused)]
 #![feature(fn_align)]
+#![feature(core_intrinsics)]
 
 pub extern crate alloc;
 
@@ -35,6 +36,8 @@ fn init_ethernet() {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
+    // PlatformImpl::shutdown(true);
+    // unreachable!();
     loop {}
 }
 
