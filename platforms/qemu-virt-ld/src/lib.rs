@@ -70,7 +70,7 @@ SECTIONS {
 /// 将设置一个启动栈，并在启动栈上调用高级语言入口。
 #[macro_export]
 macro_rules! boot0 {
-    ($entry:ident; stack = $stack:expr) => {
+    ($entry:ident; $stvec:ident; stack = $stack:expr) => {
         #[naked]
         #[no_mangle]
         #[link_section = ".text.entry"]
@@ -79,8 +79,11 @@ macro_rules! boot0 {
             static mut STACK: [u8; $stack] = [0u8; $stack];
 
             core::arch::asm!(
+                "la t0, {stvec}",
+                "csrw stvec, t0",
                 "la sp, __end",
                 "j  {main}",
+                stvec = sym $stvec,
                 main = sym $entry,
                 options(noreturn),
             )

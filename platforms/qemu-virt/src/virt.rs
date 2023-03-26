@@ -12,11 +12,12 @@ use qemu_virt_ld as linker;
 
 pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
 
+const MEMORY: usize = 32 << 20 - 1;
+
 pub struct Virt;
 
 static mut UART0: Once<MmioSerialPort> = Once::new();
 
-const MEMORY: usize = 128 << 20 - 1;
 
 pub fn init(uart: MmioSerialPort) {
     unsafe {

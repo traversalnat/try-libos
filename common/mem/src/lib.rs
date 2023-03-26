@@ -3,18 +3,16 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use buddy_system_allocator::LockedHeap;
 
+
+use good_memory_allocator::SpinLockedAllocator;
 #[cfg(not(feature = "std"))]
 #[global_allocator]
-/// heap allocator instance
-static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
-/// initiate heap allocator
+static HEAP_ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
+/// initiate heap allocator used by dispatcher
 pub fn init_heap(_heap_base: usize, _heap_size: usize) {
-    #[cfg(not(feature = "std"))]
     unsafe {
-        HEAP_ALLOCATOR.lock()
-            .init(_heap_base, _heap_size);
+        HEAP_ALLOCATOR.init(_heap_base, _heap_size);
     }
 }
 

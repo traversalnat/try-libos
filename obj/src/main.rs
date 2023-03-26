@@ -2,9 +2,8 @@
 #![no_main]
 #![allow(unused)]
 #![feature(fn_align)]
-#![feature(core_intrinsics)]
 
-pub extern crate alloc;
+extern crate alloc;
 
 use alloc::boxed::Box;
 use executor::{async_spawn, async_yield};
@@ -15,13 +14,15 @@ use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
 
 #[no_mangle]
+#[repr(align(2))]
 fn obj_main() {
+    net::init(&PhyNet, &MACADDR);
     init_ethernet();
-    PlatformImpl::spawn(app::app_main());
+    thread::init(&ThreadImpl);
+    app::app_main();
 }
 
 fn init_ethernet() {
-    net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
     PlatformImpl::spawn(async {
         loop {

@@ -268,7 +268,6 @@ impl GlobalEthernetDriver {
 
     pub fn initialize(&self, macaddr: &[u8; 6]) {
         let mut lock = self.0.lock();
-        info!("initialize of GlobalEthernetDriver");
         *lock = Some(EthernetDriver::new(macaddr));
     }
 
