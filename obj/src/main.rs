@@ -6,9 +6,8 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use executor::{async_spawn, async_yield};
-use core::pin::Pin;
-use core::{future::Future, time::Duration};
+use core::{future::Future, pin::Pin, time::Duration};
+use executor::{async_spawn, async_wait};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
@@ -19,9 +18,7 @@ fn obj_main() {
     net::init(&PhyNet, &MACADDR);
     init_ethernet();
     thread::init(&ThreadImpl);
-    PlatformImpl::spawn(async {
-        app::app_main().await
-    });
+    PlatformImpl::spawn(async { app::app_main().await });
 }
 
 fn init_ethernet() {
@@ -29,8 +26,8 @@ fn init_ethernet() {
     PlatformImpl::spawn(async {
         loop {
             let val = PlatformImpl::rdtime() as i64;
-            net::ETHERNET.poll(net::Instant::from_millis(val));
-            async_yield().await;
+            net::ETHERNET.poll(net::Instant::from_micros(val));
+            async_wait(Duration::from_millis(100)).await;
         }
     });
 }

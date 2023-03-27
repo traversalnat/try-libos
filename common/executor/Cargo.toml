@@ -10,3 +10,4 @@ spin = "0.9.4"
 async-task = { version = "1.3.0", default-features = false}
 futures = { version = "0.3.25", default-features = false, features = ["async-await"]}
 stdio = {path = "../stdio"}
+timer = {path = "../timer"}

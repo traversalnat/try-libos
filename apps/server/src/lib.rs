@@ -3,8 +3,7 @@
 pub extern crate alloc;
 
 use alloc::vec;
-use executor::async_block_on;
-use thread::append_task;
+use thread::spawn;
 
 use net::*;
 use stdio::{log::info, *};
@@ -28,12 +27,11 @@ async fn echo(sender: SocketHandle) {
     }
 }
 
-pub fn app_main() {
-    async_block_on(async move {
-        let mut listener = async_listen(6000).await.unwrap();
-        loop {
-            let sender = async_accept(&mut listener).await;
-            append_task(echo(sender));
-        }
-    });
+pub async fn app_main() {
+    let mut listener = async_listen(6000).await.unwrap();
+    loop {
+        let sender = async_accept(&mut listener).await;
+        info!("new connection");
+        spawn(echo(sender));
+    }
 }

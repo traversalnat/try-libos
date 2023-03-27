@@ -7,7 +7,7 @@ use core::{
     time::Duration,
 };
 
-use crate::timer::get_time_ms;
+use crate::time::get_time_ms;
 
 pub struct Yield {
     yielded: bool,

@@ -30,6 +30,7 @@ pub async fn app_main() {
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
     for i in 0..10 {
         let receiver = sys_sock_create();
+        info!("wait connect");
         if let Ok(_) = async_connect(receiver, remote_endpoint).await {
             spawn(echo_client(i, receiver));
         };

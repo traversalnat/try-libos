@@ -8,7 +8,7 @@
 mod async_utils;
 mod e1000;
 mod tasks;
-mod timer;
+mod time;
 mod virt;
 
 extern crate alloc;
@@ -49,6 +49,8 @@ extern "C" fn rust_main() -> ! {
 
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&virt::Stdio);
+
+    timer::init(&virt::TimeProvider);
 
     e1000::init();
 

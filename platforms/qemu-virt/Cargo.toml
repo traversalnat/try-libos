@@ -16,6 +16,7 @@ qemu-virt-ld = { path = "../qemu-virt-ld"}
 
 kernel-context = {path = "./kernel-context", features = []}
 mem = {path = "../../common/mem"}
+timer = {path = "../../common/timer"}
 executor = {path = "../../common/executor"}
 collections = {path = "../../common/collections"}
 
