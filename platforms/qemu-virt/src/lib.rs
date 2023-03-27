@@ -34,7 +34,7 @@ fn obj_main() {
 // const KERNEL_HEAP_SIZE: usize = 128 << 20;
 // static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
-linker::boot0!(rust_main; show_me_the_reason; stack = 4096 * 3);
+linker::boot0!(rust_main; show_me_the_reason; stack = 4096 * 12);
 
 extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
@@ -56,10 +56,8 @@ extern "C" fn rust_main() -> ! {
 
     tasks::block_on(async {
         loop {
-            tasks::spawn(async {
-                info!("async block on");
-            });
-            async_utils::async_wait(core::time::Duration::from_secs(1)).await;
+            // async_utils::async_wait(core::time::Duration::from_secs(1)).await;
+            async_utils::async_yield().await;
         }
     });
 

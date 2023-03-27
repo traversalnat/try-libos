@@ -431,7 +431,6 @@ checksum = "bc3a45c340447805972e5f53bf10e7118d8333bfb779f9c0ba7ec6ea30d40cd8"
 [[package]]
 name = "e1000-driver"
 version = "0.1.0"
-source = "git+https://github.com/elliott10/e1000-driver?rev=6f29c36#6f29c36e5c0c24c72f091d45d8327e9c941aac0b"
 dependencies = [
  "log",
  "volatile 0.3.0",
@@ -846,8 +845,8 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "client",
  "executor",
- "helloworld",
  "mem",
  "net",
  "qemu-virt",

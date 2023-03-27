@@ -19,7 +19,9 @@ fn obj_main() {
     net::init(&PhyNet, &MACADDR);
     init_ethernet();
     thread::init(&ThreadImpl);
-    app::app_main();
+    PlatformImpl::spawn(async {
+        app::app_main().await
+    });
 }
 
 fn init_ethernet() {
@@ -28,7 +30,7 @@ fn init_ethernet() {
         loop {
             let val = PlatformImpl::rdtime() as i64;
             net::ETHERNET.poll(net::Instant::from_millis(val));
-            async_yield();
+            async_yield().await;
         }
     });
 }
