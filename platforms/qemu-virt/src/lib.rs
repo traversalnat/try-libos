@@ -7,6 +7,7 @@
 
 mod async_utils;
 mod e1000;
+mod pci;
 mod tasks;
 mod time;
 mod virt;
@@ -52,15 +53,16 @@ extern "C" fn rust_main() -> ! {
 
     timer::init(&virt::TimeProvider);
 
-    e1000::init();
+    pci::pci_init();
 
     obj_main();
 
     tasks::block_on(async {
-        // idle task
-        // loop {
-        //     async_utils::async_yield().await;
-        // }
+        // recv packet
+        loop {
+            e1000::async_recv();
+            async_utils::async_yield().await;
+        }
     });
 
     unreachable!()
