@@ -15,13 +15,13 @@ use stdio::log::info;
 #[no_mangle]
 #[repr(align(2))]
 fn obj_main() {
-    net::init(&PhyNet, &MACADDR);
     init_ethernet();
     thread::init(&ThreadImpl);
     PlatformImpl::spawn(async { app::app_main().await });
 }
 
 fn init_ethernet() {
+    net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
     PlatformImpl::spawn(async {
         loop {
@@ -36,9 +36,8 @@ fn init_ethernet() {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     stdio::log::error!("{info}");
-    // PlatformImpl::shutdown(true);
-    // unreachable!();
-    loop {}
+    PlatformImpl::shutdown(true);
+    unreachable!();
 }
 
 struct PhyNet;

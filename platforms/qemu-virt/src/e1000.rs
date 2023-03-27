@@ -51,11 +51,6 @@ pub fn init() {
     *lock = Some(e1000);
 }
 
-/// data arrival
-pub fn handle_interrupt() -> bool {
-    true
-}
-
 static RING: Lazy<Mutex<Vec<Vec<u8>>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn recv(buf: &mut [u8]) -> usize {
@@ -81,7 +76,7 @@ pub fn can_send() -> bool {
 }
 
 pub fn can_recv() -> bool {
-    true
+    RING.lock().len() > 0
 }
 
 pub fn send(buf: &[u8]) {

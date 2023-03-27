@@ -138,6 +138,7 @@ dependencies = [
  "executor",
  "spin 0.9.4",
  "stdio",
+ "thread",
 ]
 
 [[package]]

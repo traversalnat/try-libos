@@ -1,26 +1,24 @@
 #![no_std]
-use executor::{Runner, async_yield};
-use stdio::*;
+use core::time::Duration;
+
+use executor::{async_yield, async_wait};
 use spin::Lazy;
+use stdio::*;
+use thread::spawn;
 
 pub async fn app_main() {
     println!("async echo");
+    spawn(async {
+        loop {
+            print!("hello ");
+            async_wait(Duration::from_secs(1)).await;
+        }
+    });
 
-    static EX: Lazy<Runner> = Lazy::new(|| Runner::new());
-
-    EX.block_on(async {
-        EX.spawn(async {
-            loop {
-                print!("hello ");
-                async_yield().await;
-            }
-        });
-
-        EX.spawn(async {
-            loop {
-                print!("world\n");
-                async_yield().await;
-            }
-        });
+    spawn(async {
+        loop {
+            print!("world\n");
+            async_wait(Duration::from_secs(1)).await;
+        }
     });
 }

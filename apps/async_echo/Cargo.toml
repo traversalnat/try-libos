@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 executor = {path = "../../common/executor"}
+thread = {path = "../../libs/thread"}
 stdio = {path = "../../common/stdio"}
 spin = "0.9.4"

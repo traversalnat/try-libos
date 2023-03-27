@@ -57,10 +57,10 @@ extern "C" fn rust_main() -> ! {
     obj_main();
 
     tasks::block_on(async {
-        loop {
-            // async_utils::async_wait(core::time::Duration::from_secs(1)).await;
-            async_utils::async_yield().await;
-        }
+        // idle task
+        // loop {
+        //     async_utils::async_yield().await;
+        // }
     });
 
     unreachable!()
