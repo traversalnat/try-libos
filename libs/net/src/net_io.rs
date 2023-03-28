@@ -60,7 +60,6 @@ fn async_connect_poll(
     sock: SocketHandle,
 ) -> Poll<()> {
     if sys_sock_status(sock).is_establised {
-        info!("Established of connect poll");
         Poll::Ready(())
     } else {
         Poll::Pending

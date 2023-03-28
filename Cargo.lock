@@ -173,6 +173,14 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 [[package]]
 name = "benchmark"
 version = "0.1.0"
+dependencies = [
+ "executor",
+ "mem",
+ "net",
+ "stdio",
+ "thread",
+ "timer 0.1.0",
+]
 
 [[package]]
 name = "bimap"
@@ -851,7 +859,7 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "client",
+ "benchmark",
  "executor",
  "mem",
  "net",
