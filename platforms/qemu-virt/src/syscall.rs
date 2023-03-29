@@ -28,6 +28,7 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
 
     drop(cx);
     drop(lock);
+    
     // 部分系统调用需要直接用到 task, 但不一定将 task 返回
     // sleep 系统调用会将 task 插入到等待队列中
     let (mut task, result) = match syscall_id {
@@ -42,7 +43,6 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
         }
         SYSCALL_YIELD => (Some(task), 0),
         SYSCALL_EXIT => {
-            info!("task {} exit", task.tid);
             (None, 0)
         }
         _ => panic!("Unsupported syscall_id: {}", syscall_id),

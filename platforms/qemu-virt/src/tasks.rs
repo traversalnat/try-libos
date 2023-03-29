@@ -3,14 +3,18 @@
 extern crate alloc;
 
 use crate::{
-    async_executor::{PinBoxFuture, Runner},
+    async_executor::{Executor, Task as AsyncTask, PinBoxFuture},
     mm::KAllocator,
     syscall::{sys_exit, sys_get_tid},
     thread,
     thread::TCBlock,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc, vec, vec::Vec};
-use core::future::{self, Future};
+use core::{
+    future::{self, Future},
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use spin::{Lazy, Mutex};
 use stdio::log::{self, info};
 
@@ -26,8 +30,6 @@ pub static QUEUES: Lazy<Mutex<Vec<VecDeque<Task, KAllocator>, KAllocator>>> = La
     Mutex::new(v)
 });
 
-static GLOBAL_TID: Mutex<usize> = Mutex::new(0);
-
 /// 用于存放系统调用传入的 future
 pub static GLOBAL_BOXED_FUTURE: Lazy<Mutex<PinBoxFuture>> =
     Lazy::new(|| Mutex::new(Box::pin(async {})));
@@ -39,24 +41,24 @@ pub struct Task {
     /// 线程控制块
     pub tcb: TCBlock,
     /// 协程执行器
-    pub ex: Arc<Mutex<Runner>>,
+    pub executor: Arc<Mutex<Executor>>,
+    /// time slice
     pub slice: usize, // 时间片数量 [1, NUM_SLICES_LEVELS]
 }
 
 impl Task {
-    pub fn ticks(&self) -> u8 {
-        unsafe {
-            self.ex.force_unlock();
-        }
-        self.ex.lock().ticks()
+    pub fn ticks(&self) -> usize {
+        unsafe {self.executor.force_unlock();}
+        self.executor.lock().ticks()
     }
 
     /// append the GLOBAL_BOXED_FUTURE to executor
     /// the GLOBAL_BOXED_FUTURE will set by the syscall
     pub fn append(&self) {
+        unsafe {self.executor.force_unlock();}
         let mut lock = GLOBAL_BOXED_FUTURE.lock();
         let boxed_future = core::mem::replace(&mut *lock, Box::pin(async {}));
-        self.ex.lock().append(boxed_future);
+        self.executor.lock().spawn(AsyncTask::new(boxed_future));
     }
 
     pub fn run(&self) {
@@ -70,25 +72,24 @@ pub(crate) fn spawn<F>(f: F) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    let mut ex = Arc::new(Mutex::new(Runner::new()));
-    ex.lock().append(Box::pin(f));
+    let mut executor = Arc::new(Mutex::new(Executor::new()));
+    executor.lock().spawn(AsyncTask::new(f));
+    let thread_executor = executor.clone();
 
-    let ex2 = ex.clone();
     let tcb = thread::spawn(move || {
-        ex2.lock().run_and_sched();
+        thread_executor.lock().run();
         sys_exit();
     });
 
-    let tid: usize = *GLOBAL_TID.lock();
+    static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+    let tid = NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
     let task = Task {
         tid: tid,
         tcb: tcb,
-        ex: ex,
+        executor,
         slice: 1,
     };
-
-    *GLOBAL_TID.lock() += 1;
 
     add_task_to_queue(task);
 
@@ -124,10 +125,10 @@ pub fn handle_append_task(task: Task, tid: usize) -> (Task, usize) {
         task.append();
         ret = tid;
     } else {
-        if let Some(task_tid) = get_task_by_tid(tid) {
+        if let Some(task) = get_task_by_tid(tid) {
             ret = tid;
-            task_tid.append();
-            add_task_to_queue(task_tid);
+            task.append();
+            add_task_to_queue(task);
         }
     }
 

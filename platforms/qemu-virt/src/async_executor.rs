@@ -1,79 +1,138 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
+use alloc::boxed::Box;
 
-
+use alloc::{collections::BTreeMap, sync::Arc};
 use core::{
     future::Future,
     pin::Pin,
-    task::{Context, Poll},
+    sync::atomic::{AtomicU64, Ordering},
+    task::{Context, Poll, Waker},
 };
-use spin::Mutex;
-
+use crossbeam_queue::ArrayQueue;
 
 pub use futures::{self, future::poll_fn, join};
 
+use crate::syscall::sys_yield;
+
 pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
-pub(crate) type Queue = Arc<Mutex<LinkedList<PinBoxFuture>>>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct TaskId(u64);
+
+impl TaskId {
+    fn new() -> Self {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        TaskId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+pub struct Task {
+    id: TaskId, // new
+    future: PinBoxFuture,
+}
+
+impl Task {
+    pub fn new(future: impl Future<Output = ()> + Send + 'static) -> Task {
+        Task {
+            id: TaskId::new(), // new
+            future: Box::pin(future),
+        }
+    }
+}
+
+struct TaskWaker {
+    task_id: TaskId,
+    task_queue: Arc<ArrayQueue<TaskId>>,
+}
+
+impl TaskWaker {
+    fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+        Waker::from(Arc::new(TaskWaker {
+            task_id,
+            task_queue,
+        }))
+    }
+
+    fn wake_task(&self) {
+        self.task_queue.push(self.task_id).expect("task_queue full");
+    }
+}
+
+impl alloc::task::Wake for TaskWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_task();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_task();
+    }
+}
 
 /// Runtime definition
-#[derive(Clone)]
-pub(crate) struct Runtime {
-    pub(crate) task_queue: Queue,
+pub struct Executor {
+    tasks: BTreeMap<TaskId, Task>,
+    task_queue: Arc<ArrayQueue<TaskId>>,
+    waker_cache: BTreeMap<TaskId, Waker>,
+    ticks: usize,
 }
 
-impl Runtime {
-    pub fn task_pop_front(&self) -> Option<PinBoxFuture> {
-        self.task_queue.lock().pop_front()
-    }
-
-    pub fn task_push_back(&self, task: PinBoxFuture) {
-        self.task_queue.lock().push_back(task)
-    }
-}
-
-pub struct Runner {
-    runtime: Runtime, // 运行时
-    ticks: u8,        // 协程 poll 次数
-}
-
-impl Runner {
+impl Executor {
     pub fn new() -> Self {
-        let runtime = Runtime {
-            task_queue: Arc::new(Mutex::new(LinkedList::new())),
-        };
-        Self { runtime, ticks: 0 }
+        Executor {
+            tasks: BTreeMap::new(),
+            task_queue: Arc::new(ArrayQueue::new(100)),
+            waker_cache: BTreeMap::new(),
+            ticks: 0,
+        }
+    }
+}
+
+impl Executor {
+    pub fn spawn(&mut self, task: Task) {
+        let task_id = task.id;
+        if self.tasks.insert(task.id, task).is_some() {
+            panic!("task with same ID already in tasks");
+        }
+        self.task_queue.push(task_id).expect("queue full");
     }
 
-    pub fn append(&self, future: PinBoxFuture)
-    {
-        self.runtime.task_push_back(future);
-    }
-
-    pub fn ticks(&self) -> u8 {
+    pub fn ticks(&self) -> usize {
         self.ticks
     }
 
-    /// TODO: 执行协程调度算法
-    pub fn run_and_sched(&mut self) {
-        let waker = async_task::waker_fn(|| {});
+    fn run_ready_tasks(&mut self) {
+        let tasks = &mut self.tasks;
+        let task_queue = &mut self.task_queue;
+        let waker_cache = &mut self.waker_cache;
 
-        let mut cx = Context::from_waker(&waker);
-
-        while let Some(mut handle) = self.runtime.task_pop_front() {
-            let check_handle = unsafe { Pin::new_unchecked(&mut handle) };
-            match Future::poll(check_handle, &mut cx) {
-                Poll::Ready(_) => {
-                    continue;
-                }
-                Poll::Pending => {
-                    self.runtime.task_push_back(handle);
-                }
+        while let Ok(task_id) = task_queue.pop() {
+            let task = match tasks.get_mut(&task_id) {
+                Some(task) => task,
+                None => continue, // task no longer exists
             };
+            let waker = waker_cache
+                .entry(task_id)
+                .or_insert_with(|| TaskWaker::new(task_id, task_queue.clone()));
+            let mut context = Context::from_waker(waker);
+            let handle = Pin::new(&mut task.future);
+            match handle.poll(&mut context) {
+                Poll::Ready(()) => {
+                    // task done -> remove it and its cached waker
+                    tasks.remove(&task_id);
+                    waker_cache.remove(&task_id);
+                }
+                Poll::Pending => {}
+            }
 
             self.ticks += 1;
         }
+    }
 
+    pub fn run(&mut self) -> ! {
+        loop {
+            self.run_ready_tasks();
+            sys_yield();
+        }
     }
 }

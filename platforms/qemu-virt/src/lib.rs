@@ -23,7 +23,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log;
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -78,8 +78,7 @@ extern "C" fn rust_main() -> ! {
 
     Virt::spawn(async {
         loop {
-            async_recv();
-            sys_yield();
+            async_recv().await
         }
     });
 
@@ -132,7 +131,9 @@ extern "C" fn schedule() -> ! {
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 if let Some(irq) = plic_claim() {
                     match irq as usize {
-                        E1000_IRQ => {}
+                        E1000_IRQ => {
+                            e1000::handle_interrupt();
+                        }
                         _ => {}
                     }
                     plic_complete(irq);

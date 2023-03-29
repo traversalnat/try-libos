@@ -5,12 +5,21 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use stdio::log::info;
 use core::alloc::Layout;
 use isomorphic_drivers::{
     net::ethernet::{intel::e1000::E1000, structs::EthernetAddress as DriverEthernetAddress},
     provider,
 };
 use spin::{Lazy, Mutex};
+
+use core::{
+    future::poll_fn,
+    task::{Context, Poll},
+};
+use futures::task::AtomicWaker;
+
+pub static WAKER: AtomicWaker = AtomicWaker::new();
 
 static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
@@ -48,7 +57,7 @@ pub fn init(header: usize, size: usize) {
     *lock = Some(e1000);
 }
 
-pub fn handle_interrupt() -> bool {
+pub fn has_interrupt() -> bool {
     E1000_DRIVER
         .lock()
         .as_mut()
@@ -63,22 +72,6 @@ pub fn recv(buf: &mut [u8]) -> usize {
         return len;
     }
     0
-}
-
-/// 中断来临时，负责收取
-pub fn async_recv() {
-    if handle_interrupt() {
-        while let Some(block) = E1000_DRIVER
-            .lock()
-            .as_mut()
-            .expect("E1000 Driver uninit")
-            .receive()
-        {
-            let mut buf = vec![0u8; block.len()];
-            buf.copy_from_slice(&block);
-            RECV_RING.lock().push_back(buf);
-        }
-    }
 }
 
 pub fn can_send() -> bool {
@@ -99,4 +92,32 @@ pub fn send(buf: &[u8]) {
         .as_mut()
         .expect("E1000 Driver uninit")
         .send(buf);
+}
+
+fn async_recv_poll(cx: &mut Context<'_>) -> Poll<()> {
+    WAKER.register(&cx.waker());
+    if has_interrupt() {
+        WAKER.take();
+        while let Some(block) = E1000_DRIVER
+            .lock()
+            .as_mut()
+            .expect("E1000 Driver uninit")
+            .receive()
+        {
+            let mut buf = vec![0u8; block.len()];
+            buf.copy_from_slice(&block);
+            RECV_RING.lock().push_back(buf);
+        }
+        Poll::Ready(())
+    } else {
+        Poll::Pending
+    }
+}
+
+pub async fn async_recv() {
+    poll_fn(|cx| async_recv_poll(cx)).await
+}
+
+pub fn handle_interrupt() {
+    WAKER.wake();
 }
