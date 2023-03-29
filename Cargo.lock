@@ -163,6 +163,14 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 [[package]]
 name = "benchmark"
 version = "0.1.0"
+dependencies = [
+ "executor",
+ "mem",
+ "net",
+ "stdio",
+ "thread",
+ "timer 0.1.0",
+]
 
 [[package]]
 name = "bimap"
@@ -251,7 +259,7 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits",
- "time 0.1.44",
+ "time",
  "wasm-bindgen",
  "winapi",
 ]
@@ -503,6 +511,7 @@ dependencies = [
  "futures",
  "spin 0.9.4",
  "stdio",
+ "timer 0.1.0",
 ]
 
 [[package]]
@@ -645,7 +654,7 @@ dependencies = [
  "smoltcp",
  "spin 0.9.4",
  "stdio",
- "timer",
+ "timer 0.2.0",
 ]
 
 [[package]]
@@ -871,7 +880,7 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "client",
+ "benchmark",
  "executor",
  "mem",
  "net",
@@ -1104,6 +1113,7 @@ dependencies = [
  "sbi-rt",
  "spin 0.9.4",
  "stdio",
+ "timer 0.1.0",
  "uart_16550",
  "virtio-drivers",
  "volatile 0.3.0",
@@ -1151,7 +1161,7 @@ dependencies = [
  "dlopen_derive",
  "errno",
  "libc",
- "time 0.1.44",
+ "time",
 ]
 
 [[package]]
@@ -1343,10 +1353,6 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.1.0"
-
-[[package]]
-name = "time"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6db9e6914ab8b1ae1c260a4ae7a49b6c5611b40328a735b21862567685e73255"
@@ -1354,6 +1360,13 @@ dependencies = [
  "libc",
  "wasi",
  "winapi",
+]
+
+[[package]]
+name = "timer"
+version = "0.1.0"
+dependencies = [
+ "spin 0.9.4",
 ]
 
 [[package]]

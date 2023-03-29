@@ -17,7 +17,9 @@ use stdio::log::info;
 fn obj_main() {
     init_ethernet();
     thread::init(&ThreadImpl);
-    app::app_main();
+    PlatformImpl::spawn(async {
+        app::app_main().await
+    });
 }
 
 fn init_ethernet() {

@@ -6,7 +6,7 @@ members = [
     "common/executor",
     "common/collections",
     "libs/thread",
-    "libs/time",
+    "common/timer",
     "libs/net",
     "libs/var_bitmap",
     "platforms/guest",

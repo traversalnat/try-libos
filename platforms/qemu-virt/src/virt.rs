@@ -1,6 +1,7 @@
 extern crate alloc;
+extern crate timer;
 
-use crate::{e1000, tasks, timer, syscall::{self, sys_get_tid, sys_append_task}};
+use crate::{e1000, tasks, timer::{CLOCK_FREQ, get_time_us}, syscall::{self, sys_get_tid, sys_append_task}};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
@@ -96,7 +97,7 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn frequency() -> usize {
-        timer::CLOCK_FREQ
+        CLOCK_FREQ
     }
 
     #[inline]
@@ -144,5 +145,12 @@ impl executor::Executor for Executor {
 
     fn sys_yield(&self) {
         Virt::sys_yield();
+    }
+}
+
+pub struct TimeProvider;
+impl timer::Timer for TimeProvider {
+    fn get_time_us(&self) -> usize {
+        get_time_us()
     }
 }

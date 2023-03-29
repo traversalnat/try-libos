@@ -1,5 +1,5 @@
 #![no_std]
 
-pub fn app_main() {
+pub async fn app_main() {
     stdio::println!("Hello, world!");
 }

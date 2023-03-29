@@ -18,6 +18,7 @@ mod trap;
 mod virt;
 
 extern crate alloc;
+extern crate timer as crate_timer;
 
 use qemu_virt_ld as linker;
 
@@ -37,7 +38,7 @@ use tasks::QUEUES;
 use crate::{
     e1000::async_recv,
     plic::{plic_claim, plic_complete, E1000_IRQ},
-    syscall::{sys_yield},
+    syscall::sys_yield,
     tasks::add_task_to_queue,
     timer::check_timer,
 };
@@ -67,6 +68,7 @@ extern "C" fn rust_main() -> ! {
     stdio::set_log_level(option_env!("LOG"));
     stdio::init(&virt::Stdio);
 
+    crate_timer::init(&virt::TimeProvider);
     executor::init(&virt::Executor);
 
     pci::pci_init();

@@ -1,11 +1,11 @@
 #![no_std]
 
-use alloc::{string::String, vec, format};
-use thread::{spawn, append_task, yields};
+use alloc::{format, string::String, vec};
 use log::info;
 use mem::*;
 use net::*;
 use stdio::*;
+use thread::{append_task, spawn, yields};
 
 async fn echo_client(index: usize, sender: SocketHandle) {
     let mut tx: String = format!("{index} hello, world");
@@ -26,15 +26,13 @@ async fn echo_client(index: usize, sender: SocketHandle) {
     sys_sock_close(sender);
 }
 
-pub fn app_main() {
+pub async fn app_main() {
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
-    let id = spawn(async move {
-        for i in 0..10 {
-            let receiver = sys_sock_create();
-            info!("try to connect ");
-            if let Ok(_) = async_connect(receiver, remote_endpoint).await {
-                let tid = append_task(echo_client(i, receiver));
-            };
-        }
-    });
+    for i in 0..10 {
+        let receiver = sys_sock_create();
+        info!("try to connect ");
+        if let Ok(_) = async_connect(receiver, remote_endpoint).await {
+            let tid = append_task(echo_client(i, receiver));
+        };
+    }
 }

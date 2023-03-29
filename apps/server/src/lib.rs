@@ -27,12 +27,10 @@ async fn echo(sender: SocketHandle) {
     }
 }
 
-pub fn app_main() {
-    async_block_on(async move {
-        let mut listener = async_listen(6000).await.unwrap();
-        loop {
-            let sender = async_accept(&mut listener).await;
-            async_spawn(echo(sender));
-        }
-    });
+pub async fn app_main() {
+    let mut listener = async_listen(6000).await.unwrap();
+    loop {
+        let sender = async_accept(&mut listener).await;
+        async_spawn(echo(sender));
+    }
 }

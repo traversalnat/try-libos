@@ -2,7 +2,7 @@
 
 use stdio::*;
 
-pub fn app_main() {
+pub async fn app_main() {
     let mut buffer: [u8; 256] = [0u8; 256];
     let mut i = 0;
 
