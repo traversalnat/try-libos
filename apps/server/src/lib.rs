@@ -7,6 +7,7 @@ use executor::{async_block_on, async_spawn};
 
 use net::*;
 use stdio::{log::info, *};
+use thread::append_task;
 
 async fn echo(sender: SocketHandle) {
     loop {
@@ -30,7 +31,8 @@ async fn echo(sender: SocketHandle) {
 pub async fn app_main() {
     let mut listener = async_listen(6000).await.unwrap();
     loop {
+        info!("wait for new connection");
         let sender = async_accept(&mut listener).await;
-        async_spawn(echo(sender));
+        append_task(echo(sender));
     }
 }

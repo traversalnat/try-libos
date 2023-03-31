@@ -89,10 +89,6 @@ impl Runner {
             let check_handle = unsafe { Pin::new_unchecked(&mut handle) };
             match Future::poll(check_handle, &mut cx) {
                 Poll::Ready(_) => {
-                    info!(
-                        "task end =============> {}",
-                        self.runtime.task_queue.lock().len()
-                    );
                     continue;
                 }
                 Poll::Pending => {

@@ -51,7 +51,7 @@ fn obj_main() {
     panic!()
 }
 
-linker::boot0!(rust_main; stack = 4096 * 3);
+linker::boot0!(rust_main; stack = 4096 * 12);
 
 extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
