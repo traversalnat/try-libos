@@ -65,8 +65,8 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
         is_active: socket.is_active(),
         is_listening: socket.is_listening(),
         is_establised: socket.state() == TcpState::Established,
-        can_send: socket.can_send(),
-        can_recv: socket.can_recv(),
+        can_send: socket.state() == TcpState::Established && socket.can_send(),
+        can_recv: socket.state() == TcpState::Established && socket.can_recv(),
         state: socket.state(),
     })
 }

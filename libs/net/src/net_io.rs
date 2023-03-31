@@ -28,6 +28,10 @@ fn async_recv_poll(
     sock: SocketHandle,
     va: &mut [u8],
 ) -> Poll<Option<usize>> {
+    if !sys_sock_status(sock).is_active {
+        return Poll::Ready(None);
+    }
+
     if sys_sock_status(sock).can_recv {
         Poll::Ready(sys_sock_recv(sock, va))
     } else {
@@ -44,6 +48,10 @@ fn async_send_poll(
     sock: SocketHandle,
     va: &mut [u8],
 ) -> Poll<Option<usize>> {
+    if !sys_sock_status(sock).is_establised {
+        return Poll::Ready(None);
+    }
+
     if sys_sock_status(sock).can_send {
         Poll::Ready(sys_sock_send(sock, va))
     } else {

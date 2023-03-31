@@ -20,7 +20,7 @@ async fn echo(sender: SocketHandle) {
         if let Some(size) = async_send(sender, &mut rx[..recv_size]).await {
             println!("send {size} words");
         }
-        if !sys_sock_status(sender).is_active {
+        if !sys_sock_status(sender).is_establised {
             info!("echo stopped");
             break;
         }
