@@ -1,7 +1,7 @@
 extern crate alloc;
 extern crate timer;
 
-use crate::{e1000, tasks, timer::{CLOCK_FREQ, get_time_us}, syscall::{self, sys_get_tid, sys_append_task}};
+use crate::{e1000, tasks, timer::{CLOCK_FREQ, get_time_us}, syscall::*};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;
@@ -67,7 +67,7 @@ impl platform::Platform for Virt {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        tasks::spawn(f)
+        sys_spawn(f)
     }
 
     // append_task to current thread
@@ -81,12 +81,12 @@ impl platform::Platform for Virt {
 
     #[inline]
     fn wait(_delay: core::time::Duration) {
-        syscall::sys_sleep(_delay.as_millis() as _);
+        sys_sleep(_delay.as_millis() as _);
     }
 
     #[inline]
     fn sys_yield() {
-        syscall::sys_yield();
+        sys_yield();
     }
 
     #[inline]

@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use stdio::log::info;
 
 use crate::{
-    tasks::{handle_append_task, Task, GLOBAL_BOXED_FUTURE},
+    tasks::{spawn, handle_append_task, Task, GLOBAL_BOXED_FUTURE},
     timer::sleep,
     trap::{pop_on, push_off},
 };
@@ -28,7 +28,7 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
 
     drop(cx);
     drop(lock);
-    
+
     // 部分系统调用需要直接用到 task, 但不一定将 task 返回
     // sleep 系统调用会将 task 插入到等待队列中
     let (mut task, result) = match syscall_id {
@@ -42,9 +42,7 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
             (Some(task), ret)
         }
         SYSCALL_YIELD => (Some(task), 0),
-        SYSCALL_EXIT => {
-            (None, 0)
-        }
+        SYSCALL_EXIT => (None, 0),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
 
@@ -89,6 +87,16 @@ pub fn sys_sleep(sleep_ms: usize) -> usize {
 pub fn sys_get_tid() -> usize {
     let tid = syscall(SYSCALL_GET_TID, [0, 0, 0]);
     tid
+}
+
+pub fn sys_spawn<F>(f: F) -> usize
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    let sstatus = push_off();
+    let ret = spawn(f);
+    pop_on(sstatus);
+    ret
 }
 
 pub fn sys_append_task<F>(tid: usize, future: F) -> usize

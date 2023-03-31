@@ -59,6 +59,7 @@ pub async fn app_main() {
     // 创建10个I/O密集型任务和10个计算密集型任务
 
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
+
     // 一个计时I/O密集型任务
     spawn(async move {
         let conn = sys_sock_create();
@@ -74,7 +75,6 @@ pub async fn app_main() {
             }
         }
     });
-
 
     for i in 0..10 {
         spawn(async move {

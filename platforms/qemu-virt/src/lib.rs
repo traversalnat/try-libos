@@ -116,8 +116,8 @@ extern "C" fn schedule() -> ! {
         use scause::{Exception, Interrupt, Trap};
         match scause::read().cause() {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                check_timer();
                 set_timer(u64::MAX);
+                check_timer();
 
                 let new_ticks = task.ticks();
                 // 时间片应该降低
