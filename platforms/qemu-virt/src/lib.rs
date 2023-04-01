@@ -24,7 +24,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self};
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -93,7 +93,13 @@ extern "C" fn rust_main() -> ! {
 
 #[inline]
 fn get_slice(slice: usize) -> u64 {
-    core::cmp::min(slice * slice, 10) as u64
+    match slice {
+        1 => 12500,
+        2 => 12500 * 2,
+        3 => 12500 * 3,
+        4 => 12500 * 8,
+        _ => 12500 * 10,
+    }
 }
 
 extern "C" fn schedule() -> ! {
@@ -112,8 +118,8 @@ extern "C" fn schedule() -> ! {
 
         // 计算密集型任务执行线程优先级更高、但时间片更少
         if task.status() == TaskStatus::Blocking {
-            set_timer(Virt::rdtime() as u64 + 12500 * get_slice(task.slice));
             task.set_status(TaskStatus::Running);
+            set_timer(Virt::rdtime() as u64 + get_slice(task.slice));
         }
         task.run();
 

@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(dead_code)]
 
 use alloc::vec;
 use thread::{append_task, spawn};
@@ -22,7 +23,7 @@ async fn echo_client(sender: SocketHandle) {
     let mut tx = vec!['x' as u8; 1200];
     let mut rx = vec![0 as u8; 1200];
     for _i in 0..10 {
-        async_send(sender, unsafe { tx.as_mut_slice() }).await;
+        async_send(sender, tx.as_mut_slice()).await;
         async_recv(sender, rx.as_mut_slice()).await;
         if !sys_sock_status(sender).is_active {
             break;
@@ -35,7 +36,7 @@ async fn echo_client_one(sender: SocketHandle) {
     let mut tx = vec!['x' as u8; 1200];
     let mut rx = vec![0 as u8; 1200];
     let begin: usize = get_time_ms();
-    async_send(sender, unsafe { tx.as_mut_slice() }).await;
+    async_send(sender, tx.as_mut_slice()).await;
     async_recv(sender, rx.as_mut_slice()).await;
     let end: usize = get_time_ms();
     info!("CU {}", end - begin);
@@ -46,12 +47,12 @@ async fn echo_client_one(sender: SocketHandle) {
 async fn echo_client_basic(_index: usize, sender: SocketHandle) {
     let mut tx = vec!['x' as u8; 1200];
     let mut rx = vec![0 as u8; 1200];
-    let mut begin: usize = 0;
+    let mut begin: usize;
     let end: usize = get_time_ms();
-    let mut old_end: usize = end;
+    let mut old_end: usize;
     for i in 0..10 {
         begin = get_time_ms();
-        async_send(sender, unsafe { tx.as_mut_slice() }).await;
+        async_send(sender, tx.as_mut_slice()).await;
         async_recv(sender, rx.as_mut_slice()).await;
         old_end = end;
         let end = get_time_ms();
@@ -79,15 +80,16 @@ pub async fn app_main() {
                 append_task(echo_client_one(conn));
             }
         }
+
+        for i in 0..10 {
+            append_task(async move {
+                let begin = get_time_ms();
+                fib(37);
+                let end = get_time_ms();
+                info!("EU{i}: {}", end - begin);
+                info!("END {end}");
+            });
+        }
     });
 
-    for i in 0..10 {
-        spawn(async move {
-            let begin = get_time_ms();
-            fib(37);
-            let end = get_time_ms();
-            info!("EU{i}: {}", end - begin);
-            info!("END {end}");
-        });
-    }
 }
