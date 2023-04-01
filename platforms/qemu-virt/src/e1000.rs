@@ -5,7 +5,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use stdio::log::info;
+
 use core::alloc::Layout;
 use isomorphic_drivers::{
     net::ethernet::{intel::e1000::E1000, structs::EthernetAddress as DriverEthernetAddress},

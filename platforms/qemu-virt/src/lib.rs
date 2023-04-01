@@ -24,7 +24,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log::{self};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -33,13 +33,10 @@ pub use platform::Platform;
 use virt::Virt;
 pub use virt::{Virt as PlatformImpl, MACADDR};
 
-use tasks::QUEUES;
-
 use crate::{
     e1000::async_recv,
     plic::{plic_claim, plic_complete, E1000_IRQ},
-    syscall::sys_yield,
-    tasks::add_task_to_queue,
+    tasks::{add_task_to_queue, add_task_transient, get_task_from_queue, NUM_SLICES_LEVELS},
     timer::check_timer,
 };
 
@@ -94,6 +91,11 @@ extern "C" fn rust_main() -> ! {
     unreachable!()
 }
 
+#[inline]
+fn get_slice(slice: usize) -> u64 {
+    core::cmp::min(slice * slice, 10) as u64
+}
+
 extern "C" fn schedule() -> ! {
     // WARNING: 调度器不能与线程争夺资源，包括全局内存分配器，TIMERS, THREADS, 等的锁
 
@@ -102,15 +104,17 @@ extern "C" fn schedule() -> ! {
         sie::set_sext();
     }
 
-    let level: usize = 0;
     loop {
-        let task = QUEUES.lock()[level].pop_front();
-        // TODO:  实现 MLFQ 算法
+        let task = get_task_from_queue();
         let mut task = task.expect("no task, Shutdown");
 
         let ticks = task.ticks(); // 用于task在给定时间片内是否切换协程
 
-        set_timer(Virt::rdtime() as u64 + 12500 * task.slice as u64);
+        // 计算密集型任务执行线程优先级更高、但时间片更少
+        if task.status() == TaskStatus::Blocking {
+            set_timer(Virt::rdtime() as u64 + 12500 * get_slice(task.slice));
+            task.set_status(TaskStatus::Running);
+        }
         task.run();
 
         use scause::{Exception, Interrupt, Trap};
@@ -119,15 +123,22 @@ extern "C" fn schedule() -> ! {
                 set_timer(u64::MAX);
                 check_timer();
 
+                task.set_status(TaskStatus::Blocking);
+
                 let new_ticks = task.ticks();
                 // 时间片应该降低
                 if new_ticks > ticks {
-                    task.slice = core::cmp::min(task.slice - 1, 1);
+                    task.slice = core::cmp::max(task.slice - 1, 1);
                 } else {
-                    task.slice = core::cmp::min(task.slice + 1, 5);
+                    task.slice = core::cmp::min(task.slice + 1, NUM_SLICES_LEVELS);
+                    // 时间片最大时，仍然不让出，考虑将线程中其他协程取出放入新线程执行
+                    if task.slice == NUM_SLICES_LEVELS {
+                        if let Some(task) = task.steal() {
+                            add_task_to_queue(task);
+                        }
+                    }
                 }
 
-                // TODO 对于最低层 task，要切出其它协程
                 add_task_to_queue(task);
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -140,11 +151,16 @@ extern "C" fn schedule() -> ! {
                     }
                     plic_complete(irq);
                 }
-                add_task_to_queue(task);
+                add_task_transient(task);
             }
             Trap::Exception(Exception::UserEnvCall) => {
+                use thread::TaskStatus::*;
                 if let Some(task) = syscall::handle_syscall(task) {
-                    add_task_to_queue(task);
+                    if task.status() != Blocking {
+                        add_task_transient(task);
+                    } else {
+                        add_task_to_queue(task);
+                    }
                 }
             }
             _ => {

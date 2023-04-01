@@ -1,7 +1,7 @@
 extern crate alloc;
 extern crate timer;
 
-use crate::{e1000, tasks, timer::{CLOCK_FREQ, get_time_us}, syscall::*};
+use crate::{e1000, timer::{CLOCK_FREQ, get_time_us}, syscall::*};
 use alloc::boxed::Box;
 use core::future::Future;
 use platform::Platform;

@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use crate::mm::KAllocator;
+use crate::{mm::KAllocator, syscall::sys_exit};
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
@@ -21,13 +21,12 @@ const STACK_SIZE: usize = 0x8000;
 pub type TCBlock = Arc<Mutex<TaskControlBlock>>;
 
 /// 线程状态
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum TaskStatus {
-    UnInit,
-    Ready,
-    Running,
-    Blocking,
-    Finish,
+    /// 持有CPU
+    Running,    
+    /// 在队列中等待
+    Blocking,   
 }
 
 /// 任务控制块。
@@ -61,7 +60,7 @@ impl TaskControlBlock {
         ctx: LocalContext::empty(),
         stack: 0,
         exit_code: None,
-        status: TaskStatus::UnInit,
+        status: TaskStatus::Blocking,
     };
 
     /// 初始化一个任务。
@@ -70,7 +69,7 @@ impl TaskControlBlock {
         self.stack =
             unsafe { alloc(Layout::from_size_align(STACK_SIZE, STACK_SIZE).unwrap()) } as usize;
         *self.ctx.sp_mut() = self.stack + STACK_SIZE;
-        self.status = TaskStatus::Ready;
+        self.status = TaskStatus::Blocking;
     }
 
     /// 初始化一个任务。
@@ -87,7 +86,7 @@ impl TaskControlBlock {
             stack.write_bytes(0, STACK_SIZE);
         }
         *self.ctx.sp_mut() = self.stack + STACK_SIZE;
-        self.status = TaskStatus::Ready;
+        self.status = TaskStatus::Blocking;
     }
 
     pub fn move_next(&mut self) {
@@ -129,7 +128,7 @@ where
     fn run(&mut self) {
         let closure = self.closure.take().expect("you can't run a thread twice!");
         (closure)();
-        self.tcb.lock().status = TaskStatus::Finish;
+        sys_exit();
     }
 }
 
@@ -155,7 +154,7 @@ where
     F: FnOnce() + Send + 'static,
 {
     let mut t = TaskControlBlock::ZERO;
-    t.status = TaskStatus::Ready;
+    t.status = TaskStatus::Running;
 
     let t = Arc::new(Mutex::new(t));
 

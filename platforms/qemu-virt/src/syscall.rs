@@ -1,12 +1,11 @@
 #![allow(dead_code)]
-use alloc::boxed::Box;
-use stdio::log::info;
-
 use crate::{
-    tasks::{spawn, handle_append_task, Task, GLOBAL_BOXED_FUTURE},
+    tasks::{handle_append_task, spawn, Task, GLOBAL_BOXED_FUTURE},
+    thread,
     timer::sleep,
     trap::{pop_on, push_off},
 };
+use alloc::boxed::Box;
 use core::future::Future;
 
 // 流程：调用 sys_xxx => 调用 syscall 函数并传入系统调用号和参数 => syscall 通过 e_call 函数陷入调度器 (调度器使用 handle_syscall 处理系统调用 => 调度器返回至 e_call 的下一个指令) => syscall 返回系统调用结果
@@ -18,7 +17,7 @@ pub const SYSCALL_YIELD: usize = 104;
 pub const SYSCALL_EXIT: usize = 105;
 
 /// handle syscall exception with `syscall_id` and other arguments
-pub fn handle_syscall(task: Task) -> Option<Task> {
+pub fn handle_syscall(mut task: Task) -> Option<Task> {
     let mut lock = task.tcb.lock();
     let cx = &mut lock.ctx;
     let syscall_id = cx.x(17);
@@ -31,8 +30,12 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
 
     // 部分系统调用需要直接用到 task, 但不一定将 task 返回
     // sleep 系统调用会将 task 插入到等待队列中
+    use thread::TaskStatus::*;
     let (mut task, result) = match syscall_id {
-        SYSCALL_SLEEP => sleep(task, arg0),
+        SYSCALL_SLEEP => {
+            task.set_status(Blocking);
+            sleep(task, arg0)
+        }
         SYSCALL_GET_TID => {
             let tid = task.tid;
             (Some(task), tid)
@@ -41,7 +44,10 @@ pub fn handle_syscall(task: Task) -> Option<Task> {
             let (task, ret) = handle_append_task(task, arg0);
             (Some(task), ret)
         }
-        SYSCALL_YIELD => (Some(task), 0),
+        SYSCALL_YIELD => {
+            task.set_status(Blocking);
+            (Some(task), 0)
+        }
         SYSCALL_EXIT => (None, 0),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };

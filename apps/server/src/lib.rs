@@ -3,7 +3,7 @@
 pub extern crate alloc;
 
 use alloc::vec;
-use executor::{async_block_on, async_spawn};
+
 
 use net::*;
 use stdio::{log::info, *};

@@ -53,7 +53,7 @@ impl SleepFuture {
 impl Future for SleepFuture {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Self::Output> {
         if get_time_ms() >= self.dur.as_millis().try_into().unwrap() {
             return Poll::Ready(());
         }

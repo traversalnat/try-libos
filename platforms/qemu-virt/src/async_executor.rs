@@ -3,7 +3,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
-use stdio::log::info;
+
+
 use core::{
     future::Future,
     pin::Pin,
@@ -128,6 +129,33 @@ impl Executor {
 
             self.ticks += 1;
         }
+    }
+
+    /// steal all tasks in task_queue
+    pub fn steal(&mut self) -> Option<Executor> {
+        let task_queue = &mut self.task_queue;
+        let tasks = &mut self.tasks;
+        let waker_cache = &mut self.waker_cache;
+
+        if task_queue.len() >= 1 {
+            let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(100));
+            let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
+            while let Ok(task_id) = task_queue.pop() {
+                new_task_queue.push(task_id).expect("ArrayQueue push error");
+                let task = tasks.remove(&task_id).unwrap();
+                // 由于协程执行器变化，需要清除当前执行器中的 waker 缓存
+                waker_cache.remove(&task_id);
+                new_tasks.insert(task_id, task);
+            }
+
+            return Some(Executor {
+                task_queue: new_task_queue,
+                tasks: new_tasks,
+                waker_cache: BTreeMap::new(),
+                ticks: 0,
+            });
+        }
+        None
     }
 
     pub fn run(&mut self) -> ! {

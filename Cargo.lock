@@ -880,7 +880,7 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
- "benchmark",
+ "client",
  "executor",
  "mem",
  "net",

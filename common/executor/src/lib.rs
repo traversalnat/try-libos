@@ -10,7 +10,7 @@ use core::{
     task::{Context, Poll},
 };
 use spin::{Lazy, Mutex, Once};
-use stdio::log::info;
+
 
 pub use futures::{self, future::poll_fn, join};
 pub use utils::*;

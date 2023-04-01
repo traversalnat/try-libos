@@ -5,7 +5,7 @@ use log::info;
 use mem::*;
 use net::*;
 use stdio::*;
-use thread::{append_task, spawn, yields};
+use thread::{append_task};
 
 async fn echo_client(index: usize, sender: SocketHandle) {
     let mut tx: String = format!("{index} hello, world");
@@ -32,7 +32,7 @@ pub async fn app_main() {
         let receiver = sys_sock_create();
         info!("try to connect ");
         if let Ok(_) = async_connect(receiver, remote_endpoint).await {
-            let tid = append_task(echo_client(i, receiver));
+            let _tid = append_task(echo_client(i, receiver));
         };
     }
 }
