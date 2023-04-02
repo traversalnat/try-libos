@@ -4,7 +4,6 @@ pub extern crate alloc;
 
 use alloc::vec;
 
-
 use net::*;
 use stdio::{log::info, *};
 use thread::append_task;
@@ -21,7 +20,7 @@ async fn echo(sender: SocketHandle) {
         if let Some(size) = async_send(sender, &mut rx[..recv_size]).await {
             println!("send {size} words");
         }
-        if !sys_sock_status(sender).is_active {
+        if !sys_sock_status(sender).is_active && !sys_sock_status(sender).can_recv {
             info!("echo stopped");
             break;
         }

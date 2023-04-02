@@ -2,11 +2,13 @@
 #![allow(dead_code)]
 
 #![macro_use]
+use core::time::Duration;
+
 use alloc::vec;
 
 use alloc::vec::Vec;
 use crossbeam_queue::ArrayQueue;
-use executor::{async_block_on, async_wait_some, async_yield};
+use executor::{async_block_on, async_wait_some, async_yield, async_wait};
 use spin::Lazy;
 use thread::{append_task, spawn};
 
@@ -28,8 +30,8 @@ fn fib(n: i32) -> i32 {
 
 // IO 密集型任务
 async fn echo_client(sender: SocketHandle) {
-    let mut tx = vec!['x' as u8; 1200];
-    let mut rx = vec![0 as u8; 1200];
+    let mut tx = vec!['x' as u8; 1024];
+    let mut rx = vec![0 as u8; 1024];
     for _i in 0..10 {
         async_send(sender, tx.as_mut_slice()).await;
         async_recv(sender, rx.as_mut_slice()).await;
@@ -41,8 +43,8 @@ async fn echo_client(sender: SocketHandle) {
 }
 
 async fn echo_client_one(sender: SocketHandle) {
-    let mut tx = vec!['x' as u8; 1200];
-    let mut rx = vec![0 as u8; 1200];
+    let mut tx = vec!['x' as u8; 1024];
+    let mut rx = vec![0 as u8; 1024];
     let begin: usize = get_time_ms();
     async_send(sender, tx.as_mut_slice()).await;
     async_recv(sender, rx.as_mut_slice()).await;
@@ -54,8 +56,8 @@ async fn echo_client_one(sender: SocketHandle) {
 }
 
 async fn echo_client_basic(_index: usize, sender: SocketHandle) {
-    let mut tx = vec!['x' as u8; 1200];
-    let mut rx = vec![0 as u8; 1200];
+    let mut tx = vec!['x' as u8; 1024];
+    let mut rx = vec![0 as u8; 1024];
     let mut begin: usize;
     let end: usize = get_time_ms();
     let mut old_end: usize;
@@ -83,24 +85,20 @@ pub async fn app_main() {
 
     let begin = get_time_ms();
     info!("ALL {begin}");
+
     // 10个计时I/O密集型任务组成的一个线程
-    for _i in 0..LOOP_SIZE {
+    for _ in 0..LOOP_SIZE {
         let conn = sys_sock_create();
         if let Ok(_) = async_connect(conn, remote_endpoint).await {
             append_task(echo_client_one(conn));
         }
     }
 
-    // for i in 0..LOOP_SIZE {
-    //     spawn(async move {
-    //         // let begin = get_time_ms();
-    //         fib(37);
-    //         // let end = get_time_ms();
-    //         // info!("EU{i}: {}", end - begin);
-    //         // info!("END {end}");
-    //     });
-    // }
-    //
+    for _ in 0..10 {
+        spawn(async move {
+            fib(37);
+        });
+    }
 
     if async_wait_some(|| IO_TIME.len() == LOOP_SIZE).await {
         let mut vec: Vec<usize> = Vec::new();

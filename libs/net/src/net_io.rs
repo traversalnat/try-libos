@@ -3,6 +3,8 @@ use core::{
     task::{Context, Poll},
 };
 
+use stdio::log::info;
+
 use crate::*;
 
 fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
@@ -25,11 +27,13 @@ pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
 }
 
 fn async_recv_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Option<usize>> {
-    if !sys_sock_status(sock).is_active {
+    let status = sys_sock_status(sock);
+
+    if !status.is_active && !status.can_recv {
         return Poll::Ready(None);
     }
 
-    if sys_sock_status(sock).can_recv {
+    if status.can_recv {
         Poll::Ready(sys_sock_recv(sock, va))
     } else {
         cx.waker().wake_by_ref();
@@ -42,11 +46,13 @@ pub async fn async_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
 }
 
 fn async_send_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Option<usize>> {
-    if !sys_sock_status(sock).is_establised {
+    let status = sys_sock_status(sock);
+
+    if !status.is_establised && !status.can_send {
         return Poll::Ready(None);
     }
 
-    if sys_sock_status(sock).can_send {
+    if status.can_send {
         Poll::Ready(sys_sock_send(sock, va))
     } else {
         cx.waker().wake_by_ref();
