@@ -37,6 +37,7 @@ pub struct SocketState {
     pub is_active: bool,
     pub is_listening: bool,
     pub is_establised: bool,
+    pub is_close_wait: bool,
     pub can_send: bool,
     pub can_recv: bool,
     pub state: TcpState,
@@ -48,6 +49,7 @@ impl fmt::Debug for SocketState {
             .field("is_active", &self.is_active)
             .field("is_listening", &self.is_listening)
             .field("is_establised", &self.is_establised)
+            .field("is_close_wait", &self.is_close_wait)
             .field("can_send", &self.can_send)
             .field("can_recv", &self.can_recv)
             .field("state", &self.state)
@@ -64,6 +66,7 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
         is_active: socket.is_active(),
         is_listening: socket.is_listening(),
         is_establised: socket.state() == TcpState::Established,
+        is_close_wait: socket.state() == TcpState::CloseWait,
         can_send: socket.can_send(),
         can_recv: socket.can_recv(),
         state: socket.state(),
