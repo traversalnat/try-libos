@@ -21,7 +21,7 @@ pub trait Executor: Sync + Send {
         1
     }
 
-    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>);
+    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>, is_io: bool);
 
     fn sys_yield(&self);
 }
@@ -108,7 +108,7 @@ where
         for _ in 0..=EXECUTOR.wait().sys_cpus() {
             EXECUTOR.wait().sys_spawn(Box::new(|| loop {
                 EX.block_on(async_yield());
-            }));
+            }), false);
         }
         runner
     });

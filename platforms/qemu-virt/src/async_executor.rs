@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
-use stdio::log::info;
+
 
 use core::{
     future::Future,
@@ -139,7 +139,7 @@ impl Executor {
         let tasks = &mut self.tasks;
         let waker_cache = &mut self.waker_cache;
 
-        if task_queue.len() >= 1 {
+        if task_queue.len() > 1 {
             let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
             let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {

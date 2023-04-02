@@ -7,7 +7,7 @@ use spin::Once;
 use core::future::Future;
 
 pub trait Thread: Sync {
-    fn spawn(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize;
+    fn spawn(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>, is_io: bool) -> usize;
     fn append_task(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize;
     fn yields(&self);
 }
@@ -18,11 +18,11 @@ pub fn init(tr: &'static dyn Thread) {
     THREAD.call_once(|| tr);
 }
 
-pub fn spawn<F>(f: F) -> usize
+pub fn spawn<F>(f: F, is_io: bool) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    THREAD.wait().spawn(Box::pin(f))
+    THREAD.wait().spawn(Box::pin(f), is_io)
 }
 
 // append_task to current thread

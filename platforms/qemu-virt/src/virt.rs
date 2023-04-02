@@ -63,11 +63,11 @@ impl platform::Platform for Virt {
 
     // thread
     #[inline]
-    fn spawn<F>(f: F) -> usize
+    fn spawn<F>(f: F, is_io: bool) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        sys_spawn(f)
+        sys_spawn(f, is_io)
     }
 
     // append_task to current thread
@@ -139,8 +139,8 @@ impl executor::Executor for Executor {
         1
     }
 
-    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>) {
-        Virt::spawn(async { f() });
+    fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>, is_io: bool) {
+        Virt::spawn(async { f() }, is_io);
     }
 
     fn sys_yield(&self) {

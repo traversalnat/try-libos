@@ -20,12 +20,12 @@ mod virt;
 extern crate alloc;
 extern crate timer as crate_timer;
 
-use crate_timer::get_time_ms;
+
 use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log::{self};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -37,7 +37,7 @@ pub use virt::{Virt as PlatformImpl, MACADDR};
 use crate::{
     e1000::async_recv,
     plic::{plic_claim, plic_complete, E1000_IRQ},
-    tasks::{add_task_to_queue, add_task_transient, get_task_from_queue, NUM_SLICES_LEVELS},
+    tasks::{add_task_to_queue, add_task_transient, get_task_from_queue},
     timer::check_timer,
 };
 
@@ -76,13 +76,16 @@ extern "C" fn rust_main() -> ! {
 
     log::info!("init kthread");
 
-    Virt::spawn(async {
-        loop {
-            async_recv().await
-        }
-    });
+    Virt::spawn(
+        async {
+            loop {
+                async_recv().await
+            }
+        },
+        true,
+    );
 
-    Virt::spawn(async { obj_main() });
+    Virt::spawn(async { obj_main() }, true);
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
@@ -93,12 +96,9 @@ extern "C" fn rust_main() -> ! {
 }
 
 #[inline]
-fn get_slice(slice: usize) -> u64 {
-    match slice {
-        1 => 12500,
-        2 => 12500,
-        3 => 12500 * 3,
-        4 => 12500 * 4,
+fn get_slice(io: bool) -> u64 {
+    match io {
+        true => 12500,
         _ => 12500 * 10,
     }
 }
@@ -120,7 +120,7 @@ extern "C" fn schedule() -> ! {
         // 计算密集型任务执行线程优先级更高、但时间片更少
         if task.status() == TaskStatus::Blocking {
             task.set_status(TaskStatus::Running);
-            set_timer(Virt::rdtime() as u64 + get_slice(task.slice));
+            set_timer(Virt::rdtime() as u64 + get_slice(task.io));
         }
         task.run();
 
@@ -133,17 +133,14 @@ extern "C" fn schedule() -> ! {
                 task.set_status(TaskStatus::Blocking);
 
                 let new_ticks = task.ticks();
-                // 在一个时间片内让出CPU的线程的时间片不会变化
-                // 时间片应该降低
-                if new_ticks > ticks {
-                    task.slice = core::cmp::max(task.slice - 1, 1);
-                } else {
-                    task.slice = core::cmp::min(task.slice + 1, NUM_SLICES_LEVELS);
-                    if task.slice == NUM_SLICES_LEVELS {
+                if new_ticks == ticks {
+                    if task.io {
                         if let Some(task) = task.steal() {
                             add_task_to_queue(task);
                         }
                     }
+                } else {
+                    task.io = true;
                 }
 
                 add_task_to_queue(task);

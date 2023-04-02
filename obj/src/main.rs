@@ -6,8 +6,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::pin::Pin;
-use core::{future::Future, time::Duration};
+use core::{future::Future, pin::Pin, time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
@@ -17,22 +16,23 @@ use stdio::log::info;
 fn obj_main() {
     init_ethernet();
     thread::init(&ThreadImpl);
-    PlatformImpl::spawn(async {
-        app::app_main().await
-    });
+    PlatformImpl::spawn(async { app::app_main().await }, true);
 }
 
 fn init_ethernet() {
     net::init(&PhyNet, &MACADDR);
     // 网络栈需要不断poll
-    PlatformImpl::spawn(async {
-        loop {
-            let val = PlatformImpl::rdtime() as i64;
-            net::ETHERNET.poll(net::Instant::from_millis(val));
-            let delay = Duration::from_millis(100);
-            PlatformImpl::wait(delay);
-        }
-    });
+    PlatformImpl::spawn(
+        async {
+            loop {
+                let val = PlatformImpl::rdtime() as i64;
+                net::ETHERNET.poll(net::Instant::from_millis(val));
+                let delay = Duration::from_millis(100);
+                PlatformImpl::wait(delay);
+            }
+        },
+        true,
+    );
 }
 
 #[cfg(not(feature = "std"))]
@@ -67,8 +67,8 @@ impl net::PhyNet for PhyNet {
 struct ThreadImpl;
 
 impl thread::Thread for ThreadImpl {
-    fn spawn(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize {
-        PlatformImpl::spawn(f)
+    fn spawn(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>, is_io: bool) -> usize {
+        PlatformImpl::spawn(f, is_io)
     }
     fn append_task(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) -> usize {
         PlatformImpl::append_task(f)

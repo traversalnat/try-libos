@@ -19,7 +19,7 @@ use spin::{Lazy, Mutex};
 use stdio::log::{self, info};
 
 // MLFQ 层数
-pub const NUM_SLICES_LEVELS: usize = 5;
+pub const NUM_LEVELS: usize = 2;
 
 // MLFQ
 struct MlfqStruct {
@@ -35,15 +35,15 @@ impl MlfqStruct {
         }
 
         // info!("=========");
-        // for i in 0..NUM_SLICES_LEVELS {
+        // for i in 0..NUM_LEVELS {
         //     info!("{i} {}", self.queue[i].len());
         // }
         // info!("=========");
-
-        for _ in 0..NUM_SLICES_LEVELS {
+        
+        for _ in 0..NUM_LEVELS {
             let level = self.level;
             self.level += 1;
-            self.level %= NUM_SLICES_LEVELS;
+            self.level %= NUM_LEVELS;
 
             if let Some(task) = self.queue[level].pop_front() {
                 return Some(task);
@@ -55,7 +55,7 @@ impl MlfqStruct {
 
     pub fn get_task_by_tid(&mut self, tid: usize) -> Option<Task> {
         let queue = &mut self.queue;
-        for i in 0..NUM_SLICES_LEVELS {
+        for i in 0..NUM_LEVELS {
             for j in 0..queue[i].len() {
                 if queue[i][j].tid == tid {
                     queue[i].swap(0, j);
@@ -67,8 +67,11 @@ impl MlfqStruct {
     }
 
     pub fn add_task_to_queue(&mut self, task: Task) {
-        let level = (task.slice - 1) % NUM_SLICES_LEVELS;
-        self.queue[level].push_back(task);
+        if task.io {
+            self.queue[0].push_back(task);
+        } else {
+            self.queue[NUM_LEVELS - 1].push_back(task);
+        }
     }
 
     pub fn add_task_transient(&mut self, task: Task) {
@@ -87,7 +90,7 @@ impl MlfqStruct {
 // MLFQ
 static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
     let mut v = Vec::new_in(KAllocator);
-    for _ in 0..NUM_SLICES_LEVELS {
+    for _ in 0..NUM_LEVELS {
         v.push(VecDeque::new_in(KAllocator));
     }
     Mutex::new(MlfqStruct {
@@ -109,12 +112,12 @@ pub struct Task {
     pub tcb: TCBlock,
     /// 协程执行器
     pub executor: Arc<Mutex<Executor>>,
-    /// time slice
-    pub slice: usize, // 时间片数量 [1, NUM_SLICES_LEVELS]
+    /// is I/O task
+    pub io: bool,
 }
 
 impl Task {
-    pub fn new(tcb: TCBlock, executor: Arc<Mutex<Executor>>) -> Task {
+    pub fn new(tcb: TCBlock, executor: Arc<Mutex<Executor>>, is_io: bool) -> Task {
         static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
         let tid = NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
@@ -122,7 +125,7 @@ impl Task {
             tid: tid,
             tcb: tcb,
             executor,
-            slice: 2,
+            io: is_io
         }
     }
 }
@@ -158,7 +161,7 @@ impl Task {
                 sys_exit();
             });
 
-            return Some(Self::new(tcb, executor));
+            return Some(Self::new(tcb, executor, true));
         }
         None
     }
@@ -181,7 +184,7 @@ impl Task {
     }
 }
 
-pub(crate) fn spawn<F>(f: F) -> usize
+pub(crate) fn spawn<F>(f: F, is_io: bool) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
@@ -194,7 +197,7 @@ where
         sys_exit();
     });
 
-    let task = Task::new(tcb, executor);
+    let task = Task::new(tcb, executor, is_io);
     let tid = task.tid;
 
     add_task_to_queue(task);

@@ -86,18 +86,18 @@ pub async fn app_main() {
     let begin = get_time_ms();
     info!("ALL {begin}");
 
+    for _ in 0..100 {
+        spawn(async move {
+            fib(37);
+        }, false);
+    }
+
     // 10个计时I/O密集型任务组成的一个线程
     for _ in 0..LOOP_SIZE {
         let conn = sys_sock_create();
         if let Ok(_) = async_connect(conn, remote_endpoint).await {
             append_task(echo_client_one(conn));
         }
-    }
-
-    for _ in 0..10 {
-        spawn(async move {
-            fib(37);
-        });
     }
 
     if async_wait_some(|| IO_TIME.len() == LOOP_SIZE).await {

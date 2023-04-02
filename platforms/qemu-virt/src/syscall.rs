@@ -95,12 +95,12 @@ pub fn sys_get_tid() -> usize {
     tid
 }
 
-pub fn sys_spawn<F>(f: F) -> usize
+pub fn sys_spawn<F>(f: F, is_io: bool) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
     let sstatus = push_off();
-    let ret = spawn(f);
+    let ret = spawn(f, is_io);
     pop_on(sstatus);
     ret
 }
