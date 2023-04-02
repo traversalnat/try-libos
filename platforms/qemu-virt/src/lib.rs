@@ -20,6 +20,7 @@ mod virt;
 extern crate alloc;
 extern crate timer as crate_timer;
 
+use crate_timer::get_time_ms;
 use qemu_virt_ld as linker;
 
 use riscv::register::*;
@@ -94,11 +95,11 @@ extern "C" fn rust_main() -> ! {
 #[inline]
 fn get_slice(slice: usize) -> u64 {
     match slice {
-        1 => 12500,
-        2 => 12500 * 2,
+        1 => 6500,
+        2 => 12500,
         3 => 12500 * 3,
         4 => 12500 * 8,
-        _ => 12500 * 10,
+        _ => 12500 * 18,
     }
 }
 
@@ -132,12 +133,12 @@ extern "C" fn schedule() -> ! {
                 task.set_status(TaskStatus::Blocking);
 
                 let new_ticks = task.ticks();
+                // 在一个时间片内让出CPU的线程的时间片不会变化
                 // 时间片应该降低
                 if new_ticks > ticks {
                     task.slice = core::cmp::max(task.slice - 1, 1);
                 } else {
                     task.slice = core::cmp::min(task.slice + 1, NUM_SLICES_LEVELS);
-                    // 时间片最大时，仍然不让出，考虑将线程中其他协程取出放入新线程执行
                     if task.slice == NUM_SLICES_LEVELS {
                         if let Some(task) = task.steal() {
                             add_task_to_queue(task);

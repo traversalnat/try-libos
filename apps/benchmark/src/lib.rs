@@ -1,13 +1,21 @@
 #![no_std]
 #![allow(dead_code)]
 
+#![macro_use]
 use alloc::vec;
+
+use alloc::vec::Vec;
+use crossbeam_queue::ArrayQueue;
+use executor::{async_block_on, async_wait_some, async_yield};
+use spin::Lazy;
 use thread::{append_task, spawn};
 
 use mem::*;
 use net::*;
 use stdio::log::info;
 use timer::get_time_ms;
+
+static IO_TIME: Lazy<ArrayQueue<usize>> = Lazy::new(|| ArrayQueue::new(120));
 
 // 计算密集型任务
 fn fib(n: i32) -> i32 {
@@ -41,6 +49,7 @@ async fn echo_client_one(sender: SocketHandle) {
     let end: usize = get_time_ms();
     info!("CU {}", end - begin);
     info!("END {end}");
+    IO_TIME.push(end - begin);
     sys_sock_close(sender);
 }
 
@@ -70,26 +79,35 @@ pub async fn app_main() {
 
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
 
+    const LOOP_SIZE: usize = 10;
+
     let begin = get_time_ms();
     info!("ALL {begin}");
     // 10个计时I/O密集型任务组成的一个线程
-    spawn(async move {
-        for _i in 0..10 {
-            let conn = sys_sock_create();
-            if let Ok(_) = async_connect(conn, remote_endpoint).await {
-                append_task(echo_client_one(conn));
-            }
+    for _i in 0..LOOP_SIZE {
+        let conn = sys_sock_create();
+        if let Ok(_) = async_connect(conn, remote_endpoint).await {
+            append_task(echo_client_one(conn));
+        }
+    }
+
+    // for i in 0..LOOP_SIZE {
+    //     spawn(async move {
+    //         // let begin = get_time_ms();
+    //         fib(37);
+    //         // let end = get_time_ms();
+    //         // info!("EU{i}: {}", end - begin);
+    //         // info!("END {end}");
+    //     });
+    // }
+    //
+
+    if async_wait_some(|| IO_TIME.len() == LOOP_SIZE).await {
+        let mut vec: Vec<usize> = Vec::new();
+        while let Ok(i) = IO_TIME.pop() {
+            vec.push(i);
         }
 
-        for i in 0..10 {
-            append_task(async move {
-                let begin = get_time_ms();
-                fib(37);
-                let end = get_time_ms();
-                info!("EU{i}: {}", end - begin);
-                info!("END {end}");
-            });
-        }
-    });
-
+        info!("{:#?}", vec);
+    }
 }

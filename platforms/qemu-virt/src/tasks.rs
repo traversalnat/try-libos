@@ -34,6 +34,13 @@ impl MlfqStruct {
             return core::mem::replace(&mut self.task, None);
         }
 
+        // info!("======");
+        // for i in 0..NUM_SLICES_LEVELS {
+        //     info!("{i} {}", self.queue[i].len());
+        // }
+        // info!("======");
+
+
         for _ in 0..NUM_SLICES_LEVELS {
             let level = self.level;
             self.level += 1;

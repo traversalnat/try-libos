@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use alloc::{collections::BTreeMap, sync::Arc};
 use stdio::log::info;
 
-
 use core::{
     future::Future,
     pin::Pin,
@@ -19,6 +18,8 @@ pub use futures::{self, future::poll_fn, join};
 use crate::syscall::sys_yield;
 
 pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+
+const TASKNUM: usize = 300;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId(u64);
@@ -84,7 +85,7 @@ impl Executor {
     pub fn new() -> Self {
         Executor {
             tasks: BTreeMap::new(),
-            task_queue: Arc::new(ArrayQueue::new(100)),
+            task_queue: Arc::new(ArrayQueue::new(TASKNUM)),
             waker_cache: BTreeMap::new(),
             ticks: 0,
         }
@@ -139,7 +140,7 @@ impl Executor {
         let waker_cache = &mut self.waker_cache;
 
         if task_queue.len() >= 1 {
-            let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(100));
+            let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
             let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {
                 new_task_queue.push(task_id).expect("ArrayQueue push error");
@@ -159,10 +160,14 @@ impl Executor {
         None
     }
 
-    pub fn run(&mut self) -> ! {
+    pub fn run(&mut self) {
         loop {
             self.run_ready_tasks();
-            sys_yield();
+            if self.tasks.len() == 0 {
+                break;
+            } else {
+                sys_yield();
+            }
         }
     }
 }

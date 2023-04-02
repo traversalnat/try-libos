@@ -164,9 +164,11 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 name = "benchmark"
 version = "0.1.0"
 dependencies = [
+ "crossbeam-queue",
  "executor",
  "mem",
  "net",
+ "spin 0.9.4",
  "stdio",
  "thread",
  "timer 0.1.0",
