@@ -12,3 +12,5 @@ stdio = { path = "../../common/stdio" }
 executor = {path = "../../common/executor"}
 thread = {path = "../../libs/thread"}
 spin = "0.9.4"
+
+futures = { version = "0.3.25", default-features = false, features = ["async-await"]}

@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
 
-
 use core::{
     future::Future,
     pin::Pin,
@@ -78,6 +77,7 @@ pub struct Executor {
     tasks: BTreeMap<TaskId, Task>,
     task_queue: Arc<ArrayQueue<TaskId>>,
     waker_cache: BTreeMap<TaskId, Waker>,
+    current: TaskId,
     ticks: usize,
 }
 
@@ -87,6 +87,7 @@ impl Executor {
             tasks: BTreeMap::new(),
             task_queue: Arc::new(ArrayQueue::new(TASKNUM)),
             waker_cache: BTreeMap::new(),
+            current: TaskId(0),
             ticks: 0,
         }
     }
@@ -111,6 +112,7 @@ impl Executor {
         let waker_cache = &mut self.waker_cache;
 
         while let Ok(task_id) = task_queue.pop() {
+            self.current = task_id;
             let task = match tasks.get_mut(&task_id) {
                 Some(task) => task,
                 None => continue, // task no longer exists
@@ -139,7 +141,8 @@ impl Executor {
         let tasks = &mut self.tasks;
         let waker_cache = &mut self.waker_cache;
 
-        if task_queue.len() > 1 {
+        // if current task don't has waker_cache, move it to new thread
+        if task_queue.len() > 1 && !waker_cache.contains_key(&self.current) {
             let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
             let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {
@@ -154,6 +157,7 @@ impl Executor {
                 task_queue: new_task_queue,
                 tasks: new_tasks,
                 waker_cache: BTreeMap::new(),
+                current: TaskId(0),
                 ticks: 0,
             });
         }

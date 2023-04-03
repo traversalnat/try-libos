@@ -25,7 +25,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self};
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -135,8 +135,10 @@ extern "C" fn schedule() -> ! {
                 let new_ticks = task.ticks();
                 if new_ticks == ticks {
                     if task.io {
-                        if let Some(task) = task.steal() {
-                            add_task_to_queue(task);
+                        // steal coroutine from task to new IO task
+                        if let Some(new_task) = task.steal() {
+                            task.io = false;
+                            add_task_to_queue(new_task);
                         }
                     }
                 } else {

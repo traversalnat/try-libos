@@ -80,13 +80,13 @@ pub async fn app_main() {
 
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
 
-    const LOOP_SIZE: usize = 10;
+    const LOOP_SIZE: usize = 100;
 
     let begin = get_time_ms();
     info!("ALL {begin}");
 
     for _ in 0..100 {
-        spawn(async move {
+        let tid = spawn(async move {
             fib(37);
         }, false);
     }
