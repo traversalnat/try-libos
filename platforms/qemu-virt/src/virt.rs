@@ -80,8 +80,8 @@ impl platform::Platform for Virt {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let tid = sys_get_tid();
-        sys_append_task(tid, _f)
+        // let tid = sys_get_tid();
+        sys_append_task(0, _f)
     }
 
     #[inline]
