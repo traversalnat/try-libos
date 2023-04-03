@@ -3,10 +3,13 @@
 pub extern crate alloc;
 
 use alloc::vec;
-use thread::spawn;
 
+use executor::async_wait;
+use futures::{select_biased, FutureExt};
 use net::*;
 use stdio::{log::info, *};
+use thread::append_task;
+use core::time::Duration;
 
 async fn echo(sender: SocketHandle) {
     loop {
@@ -20,8 +23,10 @@ async fn echo(sender: SocketHandle) {
         if let Some(size) = async_send(sender, &mut rx[..recv_size]).await {
             println!("send {size} words");
         }
-        if !sys_sock_status(sender).is_establised {
+        let status = sys_sock_status(sender);
+        if !status.can_recv && !status.is_active {
             info!("echo stopped");
+            sys_sock_close(sender);
             break;
         }
     }
@@ -30,8 +35,16 @@ async fn echo(sender: SocketHandle) {
 pub async fn app_main() {
     let mut listener = async_listen(6000).await.unwrap();
     loop {
+        info!("wait for new connection");
         let sender = async_accept(&mut listener).await;
-        info!("new connection");
-        spawn(echo(sender));
+        append_task(async move {
+            select_biased! {
+                _ = echo(sender).fuse() => (),
+                _ = async_wait(Duration::from_secs(10)).fuse() => {
+                    info!("{:#?} time out", sender);
+                    sys_sock_close(sender);
+                },
+            };
+        });
     }
 }
