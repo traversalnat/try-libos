@@ -130,3 +130,17 @@ pub fn sys_sock_close(sock: SocketHandle) {
 
 /// async version
 pub use net_io::*;
+use core::task::Context;
+
+pub fn sys_sock_register_recv(cx: &mut Context<'_>, sock: SocketHandle) {
+    ETHERNET.with_socket(sock, |socket| {
+        socket.register_recv_waker(cx.waker());
+    })
+}
+
+pub fn sys_sock_register_send(cx: &mut Context<'_>, sock: SocketHandle) {
+    ETHERNET.with_socket(sock, |socket| {
+        socket.register_send_waker(cx.waker());
+    })
+}
+

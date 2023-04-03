@@ -1,6 +1,5 @@
 #![no_std]
 #![allow(dead_code)]
-
 #![macro_use]
 use core::time::Duration;
 
@@ -8,7 +7,7 @@ use alloc::vec;
 
 use alloc::vec::Vec;
 use crossbeam_queue::ArrayQueue;
-use executor::{async_block_on, async_wait_some, async_yield, async_wait};
+use executor::{async_block_on, async_wait, async_wait_some, async_yield};
 use spin::Lazy;
 use thread::{append_task, spawn};
 

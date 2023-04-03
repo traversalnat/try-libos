@@ -6,6 +6,8 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use executor::IRQ;
+use thread::append_task;
 use core::{future::Future, pin::Pin, time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
@@ -24,12 +26,20 @@ fn init_ethernet() {
     // 网络栈需要不断poll
     PlatformImpl::spawn(
         async {
-            loop {
-                let val = PlatformImpl::rdtime() as i64;
-                net::ETHERNET.poll(net::Instant::from_millis(val));
-                let delay = Duration::from_millis(100);
-                PlatformImpl::wait(delay);
-            }
+            append_task(async {
+                loop {
+                    let val = PlatformImpl::rdtime() as i64;
+                    net::ETHERNET.poll(net::Instant::from_millis(val));
+                    executor::async_wait(Duration::from_millis(100)).await;
+                }
+            });
+            append_task(async {
+                loop {
+                    let val = PlatformImpl::rdtime() as i64;
+                    net::ETHERNET.poll(net::Instant::from_millis(val));
+                    executor::async_wait_irq(IRQ::E1000_IRQ).await;
+                }
+            });
         },
         true,
     );

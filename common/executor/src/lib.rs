@@ -1,6 +1,7 @@
 #![no_std]
 extern crate alloc;
 
+mod reactor;
 mod utils;
 
 use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
@@ -11,8 +12,9 @@ use core::{
 };
 use spin::{Lazy, Mutex, Once};
 
-
 pub use futures::{self, future::poll_fn, join};
+pub use futures::select_biased;
+pub use reactor::*;
 pub use utils::*;
 
 /// Executor trait
@@ -24,6 +26,8 @@ pub trait Executor: Sync + Send {
     fn sys_spawn(&self, f: Box<dyn FnOnce() + Send>, is_io: bool);
 
     fn sys_yield(&self);
+
+    fn sys_register_irq(&self, cx: &mut Context<'_>, irq: IRQ);
 }
 
 /// EXECUTOR
@@ -106,9 +110,12 @@ where
     static EX: Lazy<Runner> = Lazy::new(|| {
         let runner = Runner::new();
         for _ in 0..=EXECUTOR.wait().sys_cpus() {
-            EXECUTOR.wait().sys_spawn(Box::new(|| loop {
-                EX.block_on(async_yield());
-            }), false);
+            EXECUTOR.wait().sys_spawn(
+                Box::new(|| loop {
+                    EX.block_on(async_yield());
+                }),
+                false,
+            );
         }
         runner
     });

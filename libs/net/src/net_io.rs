@@ -36,7 +36,7 @@ fn async_recv_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> P
     if status.can_recv {
         Poll::Ready(sys_sock_recv(sock, va))
     } else {
-        cx.waker().wake_by_ref();
+        sys_sock_register_recv(cx, sock);
         Poll::Pending
     }
 }
@@ -55,7 +55,7 @@ fn async_send_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> P
     if status.can_send {
         Poll::Ready(sys_sock_send(sock, va))
     } else {
-        cx.waker().wake_by_ref();
+        sys_sock_register_send(cx, sock);
         Poll::Pending
     }
 }

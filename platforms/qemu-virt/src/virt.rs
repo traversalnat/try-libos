@@ -1,9 +1,14 @@
 extern crate alloc;
 extern crate timer;
 
-use crate::{e1000, timer::{CLOCK_FREQ, get_time_us}, syscall::*};
+use crate::{
+    e1000,
+    syscall::*,
+    timer::{get_time_us, CLOCK_FREQ},
+};
 use alloc::boxed::Box;
-use core::future::Future;
+use core::{future::Future, task::Context};
+use executor::IRQ;
 use platform::Platform;
 use qemu_virt_ld as linker;
 use sbi_rt::*;
@@ -145,6 +150,17 @@ impl executor::Executor for Executor {
 
     fn sys_yield(&self) {
         Virt::sys_yield();
+    }
+
+    fn sys_register_irq(&self, cx: &mut Context<'_>, irq: IRQ) {
+        match irq {
+            IRQ::E1000_IRQ => {
+                e1000::ASYNC_WAIT_WAKER.register(cx.waker());
+            }
+            _ => {
+                cx.waker().wake_by_ref();
+            }
+        }
     }
 }
 

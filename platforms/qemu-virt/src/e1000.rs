@@ -19,7 +19,8 @@ use core::{
 };
 use futures::task::AtomicWaker;
 
-pub static WAKER: AtomicWaker = AtomicWaker::new();
+pub static ASYNC_RECV_WAKER: AtomicWaker = AtomicWaker::new();
+pub static ASYNC_WAIT_WAKER: AtomicWaker = AtomicWaker::new();
 
 static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
@@ -95,9 +96,9 @@ pub fn send(buf: &[u8]) {
 }
 
 fn async_recv_poll(cx: &mut Context<'_>) -> Poll<()> {
-    WAKER.register(&cx.waker());
+    ASYNC_RECV_WAKER.register(&cx.waker());
     if has_interrupt() {
-        WAKER.take();
+        ASYNC_RECV_WAKER.take();
         while let Some(block) = E1000_DRIVER
             .lock()
             .as_mut()
@@ -119,5 +120,6 @@ pub async fn async_recv() {
 }
 
 pub fn handle_interrupt() {
-    WAKER.wake();
+    ASYNC_RECV_WAKER.wake();
+    ASYNC_WAIT_WAKER.wake();
 }

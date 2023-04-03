@@ -70,7 +70,7 @@ impl MlfqStruct {
         if task.io {
             self.queue[0].push_back(task);
         } else {
-            self.queue[NUM_LEVELS - 1].push_back(task);
+            self.queue[1].push_back(task);
         }
     }
 
