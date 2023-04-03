@@ -21,8 +21,9 @@ async fn echo(sender: SocketHandle) {
             println!("send {size} words");
         }
         let status = sys_sock_status(sender);
-        if status.is_close_wait || (!status.is_active) {
+        if !status.can_recv && !status.is_active {
             info!("echo stopped");
+            sys_sock_close(sender);
             break;
         }
     }
