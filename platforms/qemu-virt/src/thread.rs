@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use crate::{mm::KAllocator, syscall::sys_exit};
+use crate::{mm::KAllocator, syscall::sys_exit, STACK_SIZE};
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,
@@ -15,8 +15,6 @@ use core::alloc::Layout;
 use kernel_context::LocalContext;
 use spin::{Lazy, Mutex};
 use stdio::log::{self, info};
-
-const STACK_SIZE: usize = 0x8000;
 
 pub type TCBlock = Arc<Mutex<TaskControlBlock>>;
 

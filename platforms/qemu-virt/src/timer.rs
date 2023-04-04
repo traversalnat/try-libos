@@ -6,6 +6,7 @@ use crate::{
     tasks::{add_task_to_queue, Task},
     trap::*,
     Virt,
+    consts::*,
 };
 use alloc::{collections::VecDeque, sync::Arc};
 use collections::heap::Heap;
@@ -13,11 +14,6 @@ use core::cmp::Ordering;
 use riscv::register::*;
 use spin::{Lazy, Mutex};
 use stdio::log;
-
-pub const CLOCK_FREQ: usize = 12500000;
-const TICKS_PER_SEC: usize = 100;
-const MILLI_PER_SEC: usize = 1_000;
-const MICRO_PER_SEC: usize = 1_000_000;
 
 pub struct TimerCondVar {
     pub expire_ms: usize,

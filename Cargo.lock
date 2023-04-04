@@ -166,6 +166,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-queue",
  "executor",
+ "futures",
  "mem",
  "net",
  "spin 0.9.4",

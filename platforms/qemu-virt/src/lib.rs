@@ -6,6 +6,7 @@
 #![allow(unreachable_code)]
 
 mod async_executor;
+mod consts;
 mod e1000;
 mod mm;
 mod pci;
@@ -20,19 +21,19 @@ mod virt;
 extern crate alloc;
 extern crate timer as crate_timer;
 
-
 use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self, info};
+use stdio::log::{self};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
 
+pub use consts::*;
 pub use platform::Platform;
 use virt::Virt;
-pub use virt::{Virt as PlatformImpl, MACADDR};
+pub use virt::Virt as PlatformImpl;
 
 use crate::{
     e1000::async_recv,
@@ -40,8 +41,6 @@ use crate::{
     tasks::{add_task_to_queue, add_task_transient, get_task_from_queue},
     timer::check_timer,
 };
-
-const MM_SIZE: usize = 32 << 20;
 
 #[linkage = "weak"]
 #[no_mangle]

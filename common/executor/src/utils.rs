@@ -5,6 +5,9 @@ use core::{
     task::{Context, Poll},
     time::Duration,
 };
+use alloc::string::String;
+
+use alloc::boxed::Box;
 use stdio::log::info;
 use timer::get_time_ms;
 
@@ -76,4 +79,52 @@ where
     }
 
     true
+}
+
+type PinnedFuture<R> = Pin<Box<dyn Future<Output = R> + Send + 'static>>;
+
+struct Timeout<R> {
+    dur: Duration,
+    future: PinnedFuture<R>,
+}
+
+impl<R> Timeout<R> {
+    pub fn new(dur: Duration, future: PinnedFuture<R>) -> Self {
+        let now = get_time_ms();
+        let dur = dur.as_millis() as usize;
+
+        Self {
+            dur: Duration::from_millis((now + dur) as u64),
+            future: future,
+        }
+    }
+}
+
+impl<R> Future for Timeout<R> {
+    type Output = Result<R, String>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let dur = self.dur;
+        let check_handle = unsafe { Pin::new_unchecked(&mut self.get_mut().future) };
+        match Future::poll(check_handle, cx) {
+            Poll::Ready(val) => {
+                return Poll::Ready(Ok(val));
+            },
+            _ => {
+                info!("for time");
+                if get_time_ms() >= dur.as_millis().try_into().unwrap() {
+                    return Poll::Ready(Err("time out".into()));
+                }
+            }
+        };
+        // waker will be wake by self.future
+        Poll::Pending
+    }
+}
+
+pub async fn async_timeout<F, R>(f: F, dur: Duration) -> Result<R, String>
+where
+    F: Future<Output = R> + Send + 'static,
+{
+    Timeout::new(dur, Box::pin(f)).await
 }

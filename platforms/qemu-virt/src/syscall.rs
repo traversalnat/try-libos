@@ -4,17 +4,12 @@ use crate::{
     thread,
     timer::sleep,
     trap::{pop_on, push_off},
+    consts::*,
 };
 use alloc::boxed::Box;
 use core::future::Future;
 
 // 流程：调用 sys_xxx => 调用 syscall 函数并传入系统调用号和参数 => syscall 通过 e_call 函数陷入调度器 (调度器使用 handle_syscall 处理系统调用 => 调度器返回至 e_call 的下一个指令) => syscall 返回系统调用结果
-
-pub const SYSCALL_SLEEP: usize = 101;
-pub const SYSCALL_GET_TID: usize = 102;
-pub const SYSCALL_APPEND_TASK: usize = 103;
-pub const SYSCALL_YIELD: usize = 104;
-pub const SYSCALL_EXIT: usize = 105;
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn handle_syscall(mut task: Task) -> Option<Task> {
@@ -41,7 +36,7 @@ pub fn handle_syscall(mut task: Task) -> Option<Task> {
             (Some(task), tid)
         }
         SYSCALL_APPEND_TASK => {
-            let (task, ret) = handle_append_task(task, arg0);
+            let (task, ret) = handle_append_task(task);
             (Some(task), ret)
         }
         SYSCALL_YIELD => {
@@ -105,7 +100,7 @@ where
     ret
 }
 
-pub fn sys_append_task<F>(tid: usize, future: F) -> usize
+pub fn sys_append_task<F>(future: F) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
@@ -113,7 +108,7 @@ where
         &mut *GLOBAL_BOXED_FUTURE.lock(),
         Box::pin(future),
     ));
-    syscall(SYSCALL_APPEND_TASK, [tid, 0, 0])
+    syscall(SYSCALL_APPEND_TASK, [0, 0, 0])
 }
 
 pub fn sys_yield() {

@@ -4,12 +4,11 @@ pub extern crate alloc;
 
 use alloc::vec;
 
+use core::time::Duration;
 use executor::async_wait;
-use futures::{select_biased, FutureExt};
 use net::*;
 use stdio::{log::info, *};
 use thread::append_task;
-use core::time::Duration;
 
 async fn echo(sender: SocketHandle) {
     loop {
@@ -37,14 +36,6 @@ pub async fn app_main() {
     loop {
         info!("wait for new connection");
         let sender = async_accept(&mut listener).await;
-        append_task(async move {
-            select_biased! {
-                _ = echo(sender).fuse() => (),
-                _ = async_wait(Duration::from_secs(10)).fuse() => {
-                    info!("{:#?} time out", sender);
-                    sys_sock_close(sender);
-                },
-            };
-        });
+        append_task(echo(sender));
     }
 }

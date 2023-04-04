@@ -58,6 +58,7 @@ pub fn init(header: usize, size: usize) {
     *lock = Some(e1000);
 }
 
+#[inline]
 pub fn has_interrupt() -> bool {
     E1000_DRIVER
         .lock()
@@ -96,9 +97,7 @@ pub fn send(buf: &[u8]) {
 }
 
 fn async_recv_poll(cx: &mut Context<'_>) -> Poll<()> {
-    ASYNC_RECV_WAKER.register(&cx.waker());
     if has_interrupt() {
-        ASYNC_RECV_WAKER.take();
         while let Some(block) = E1000_DRIVER
             .lock()
             .as_mut()
@@ -111,6 +110,7 @@ fn async_recv_poll(cx: &mut Context<'_>) -> Poll<()> {
         }
         Poll::Ready(())
     } else {
+        ASYNC_RECV_WAKER.register(&cx.waker());
         Poll::Pending
     }
 }

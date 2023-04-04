@@ -13,6 +13,7 @@ net = { path = "../../libs/net" }
 thread = {path = "../../libs/thread"}
 stdio = { path = "../../common/stdio" }
 spin = "0.9.4"
+futures = { version = "0.3.25", default-features = false, features = ["async-await"]}
 
 [dependencies.crossbeam-queue]
 version = "0.2.1"

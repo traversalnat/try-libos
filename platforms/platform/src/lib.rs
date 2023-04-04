@@ -28,7 +28,7 @@ pub trait Platform {
     }
 
     // thread
-    fn spawn<F>(_f: F, is_io: bool) -> usize
+    fn spawn<F>(_f: F, _is_io: bool) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {

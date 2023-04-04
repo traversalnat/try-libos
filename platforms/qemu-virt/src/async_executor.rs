@@ -3,6 +3,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
+use stdio::log::info;
 
 use core::{
     future::Future,
@@ -14,11 +15,9 @@ use crossbeam_queue::ArrayQueue;
 
 pub use futures::{self, future::poll_fn, join};
 
-use crate::syscall::sys_yield;
+use crate::{syscall::sys_yield, TASKNUM};
 
 pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
-
-const TASKNUM: usize = 300;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId(u64);
@@ -58,7 +57,12 @@ impl TaskWaker {
     }
 
     fn wake_task(&self) {
-        self.task_queue.push(self.task_id).expect("task_queue full");
+        match self.task_queue.push(self.task_id) {
+            Err(_) => {
+                panic!("task_queue full {}", self.task_queue.len());
+            }
+            _ => {}
+        }
     }
 }
 
@@ -147,10 +151,11 @@ impl Executor {
             let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {
                 new_task_queue.push(task_id).expect("ArrayQueue push error");
-                let task = tasks.remove(&task_id).unwrap();
+                if let Some(task) = tasks.remove(&task_id) {
+                    new_tasks.insert(task_id, task);
+                }
                 // 由于协程执行器变化，需要清除当前执行器中的 waker 缓存
                 waker_cache.remove(&task_id);
-                new_tasks.insert(task_id, task);
             }
 
             return Some(Executor {

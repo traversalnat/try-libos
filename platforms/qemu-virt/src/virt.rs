@@ -4,7 +4,8 @@ extern crate timer;
 use crate::{
     e1000,
     syscall::*,
-    timer::{get_time_us, CLOCK_FREQ},
+    timer::get_time_us,
+    consts::*,
 };
 use alloc::boxed::Box;
 use core::{future::Future, task::Context};
@@ -14,11 +15,6 @@ use qemu_virt_ld as linker;
 use sbi_rt::*;
 use spin::Once;
 use uart_16550::MmioSerialPort;
-
-pub const MACADDR: [u8; 6] = [0x12, 0x13, 0x89, 0x89, 0xdf, 0x53];
-
-// 物理内存容量
-const MEMORY: usize = 128 << 20 - 1;
 
 pub struct Virt;
 
@@ -76,12 +72,11 @@ impl platform::Platform for Virt {
     }
 
     // append_task to current thread
-    fn append_task<F>(_f: F) -> usize
+    fn append_task<F>(f: F) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        // let tid = sys_get_tid();
-        sys_append_task(0, _f)
+        sys_append_task(f)
     }
 
     #[inline]

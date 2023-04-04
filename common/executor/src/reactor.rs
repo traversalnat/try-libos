@@ -1,6 +1,7 @@
+#![allow(non_camel_case_types)]
 use crate::EXECUTOR;
 use core::{
-    future::{poll_fn, Future},
+    future::{Future},
     pin::Pin,
     task::{Context, Poll},
 };

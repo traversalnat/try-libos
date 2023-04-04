@@ -1,13 +1,22 @@
 #![no_std]
 #![allow(dead_code)]
 #![macro_use]
+
 use core::time::Duration;
 
-use alloc::vec;
+use alloc::{vec, vec::Vec};
 
-use alloc::vec::Vec;
+use alloc::boxed::Box;
 use crossbeam_queue::ArrayQueue;
-use executor::{async_block_on, async_wait, async_wait_some, async_yield};
+use executor::{
+    async_timeout, async_wait_some, async_yield,
+    futures::{future::try_join, FutureExt},
+    select_biased,
+};
+use futures::{
+    future::{select, Select},
+    pin_mut, Future,
+};
 use spin::Lazy;
 use thread::{append_task, spawn};
 
@@ -49,7 +58,7 @@ async fn echo_client_one(sender: SocketHandle) {
     async_recv(sender, rx.as_mut_slice()).await;
     let end: usize = get_time_ms();
     info!("CU {}", end - begin);
-    info!("END {end}");
+    // info!("END {end}");
     IO_TIME.push(end - begin);
     sys_sock_close(sender);
 }
@@ -75,20 +84,29 @@ async fn echo_client_basic(_index: usize, sender: SocketHandle) {
     sys_sock_close(sender);
 }
 
+// pub async fn select_one<A, B>(fut1: A, fut2: B) -> Select<A, B>
+// where
+//     A: Future,
+//     B: Future,
+// {
+//     select(Box::pin(fut1), Box::pin(fut2))
+// }
+
 pub async fn app_main() {
     // 创建10个I/O密集型任务和10个计算密集型任务
-
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
-
     const LOOP_SIZE: usize = 100;
 
     let begin = get_time_ms();
     info!("ALL {begin}");
 
     for _ in 0..100 {
-        let tid = spawn(async move {
-            fib(37);
-        }, false);
+        let _tid = spawn(
+            async move {
+                fib(37);
+            },
+            false,
+        );
     }
 
     // 10个计时I/O密集型任务组成的一个线程
@@ -99,12 +117,19 @@ pub async fn app_main() {
         }
     }
 
-    if async_wait_some(|| IO_TIME.len() == LOOP_SIZE).await {
-        let mut vec: Vec<usize> = Vec::new();
-        while let Ok(i) = IO_TIME.pop() {
-            vec.push(i);
-        }
+    match async_timeout(
+        async_wait_some(|| IO_TIME.len() == LOOP_SIZE),
+        Duration::from_secs(5),
+    )
+    .await
+    {
+        _ => {
+            let mut vec: Vec<usize> = Vec::new();
+            while let Ok(i) = IO_TIME.pop() {
+                vec.push(i);
+            }
 
-        info!("{:#?}", vec);
+            info!("{:#?}, {}", vec, vec.len());
+        }
     }
 }

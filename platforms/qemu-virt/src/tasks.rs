@@ -8,6 +8,7 @@ use crate::{
     syscall::{sys_exit, sys_get_tid},
     thread,
     thread::{TCBlock, TaskStatus},
+    IO_TASK_TID,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc, vec, vec::Vec};
 use core::{
@@ -19,7 +20,7 @@ use spin::{Lazy, Mutex};
 use stdio::log::{self, info};
 
 // MLFQ 层数
-pub const NUM_LEVELS: usize = 2;
+const NUM_LEVELS: usize = 2;
 
 // MLFQ
 struct MlfqStruct {
@@ -224,18 +225,18 @@ pub fn get_task_by_tid(tid: usize) -> Option<Task> {
 }
 
 /// append task (GLOBAL_BOXED_FUTURE) to task of tid
-pub fn handle_append_task(task: Task, tid: usize) -> (Task, usize) {
+pub fn handle_append_task(task: Task) -> (Task, usize) {
     let mut ret = usize::MAX;
 
-    if tid == task.tid {
-        task.append();
-        ret = tid;
-    } else {
-        if let Some(task) = get_task_by_tid(tid) {
-            ret = tid;
+    if task.tid != IO_TASK_TID && task.io {
+        if let Some(task) = get_task_by_tid(IO_TASK_TID) {
             task.append();
             add_task_to_queue(task);
         }
+        ret = IO_TASK_TID;
+    } else {
+        task.append();
+        ret = task.tid;
     }
 
     (task, ret)
