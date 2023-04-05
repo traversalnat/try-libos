@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use executor::IRQ;
+use executor::{IRQ, async_yield};
 use thread::append_task;
 use core::{future::Future, pin::Pin, time::Duration};
 
@@ -30,7 +30,7 @@ fn init_ethernet() {
                 loop {
                     let val = PlatformImpl::rdtime() as i64;
                     net::ETHERNET.poll(net::Instant::from_millis(val));
-                    executor::async_wait(Duration::from_millis(100)).await;
+                    async_yield().await;
                 }
             });
             append_task(async {

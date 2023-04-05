@@ -98,7 +98,7 @@ extern "C" fn rust_main() -> ! {
 fn get_slice(io: bool) -> u64 {
     match io {
         true => 12500,
-        _ => 12500 * 10,
+        _ => 12500 * 5,
     }
 }
 

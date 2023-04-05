@@ -8,7 +8,6 @@ use core::{
 use alloc::string::String;
 
 use alloc::boxed::Box;
-use stdio::log::info;
 use timer::get_time_ms;
 
 struct Yield {
@@ -111,7 +110,6 @@ impl<R> Future for Timeout<R> {
                 return Poll::Ready(Ok(val));
             },
             _ => {
-                info!("for time");
                 if get_time_ms() >= dur.as_millis().try_into().unwrap() {
                     return Poll::Ready(Err("time out".into()));
                 }
