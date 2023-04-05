@@ -110,6 +110,10 @@ impl Executor {
         self.ticks
     }
 
+    pub fn len(&self) -> usize {
+        self.task_queue.len()
+    }
+
     fn run_ready_tasks(&mut self) {
         let tasks = &mut self.tasks;
         let task_queue = &mut self.task_queue;

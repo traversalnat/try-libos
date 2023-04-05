@@ -97,8 +97,8 @@ extern "C" fn rust_main() -> ! {
 #[inline]
 fn get_slice(io: bool) -> u64 {
     match io {
-        true => 12500,
-        _ => 12500 * 5,
+        true => 12500 * 4,
+        _ => 12500 * 10,
     }
 }
 
@@ -156,7 +156,11 @@ extern "C" fn schedule() -> ! {
                     }
                     plic_complete(irq);
                 }
-                add_task_transient(task);
+                if task.io {
+                    add_task_transient(task);
+                } else {
+                    add_task_to_queue(task);
+                }
             }
             Trap::Exception(Exception::UserEnvCall) => {
                 use thread::TaskStatus::*;

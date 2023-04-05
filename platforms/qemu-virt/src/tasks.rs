@@ -207,7 +207,8 @@ where
 }
 
 /// Add a process to the highest priority queue.
-pub fn add_task_to_queue(task: Task) {
+pub fn add_task_to_queue(mut task: Task) {
+    task.set_status(TaskStatus::Blocking);
     MLFQ.lock().add_task_to_queue(task);
 }
 

@@ -80,38 +80,43 @@ pub async fn app_main() {
         );
     }
 
-    let conn = sys_sock_create();
-    if let Ok(_) = async_connect(conn, remote_endpoint).await {
-        append_task(echo_client_basic(conn));
-    }
-
-    // for _ in 0..LOOP_SIZE {
-    //     let conn = sys_sock_create();
-    //     if let Ok(_) = async_connect(conn, remote_endpoint).await {
-    //         append_task(echo_client_one(conn));
-    //     }
+    // let conn = sys_sock_create();
+    // if let Ok(_) = async_connect(conn, remote_endpoint).await {
+    //     append_task(echo_client_basic(conn));
     // }
 
-    append_task(async {
-        match async_timeout(
-            async_wait_some(|| IO_TIME.len() == LOOP_SIZE),
-            Duration::from_secs(10),
-        )
-        .await
-        {
-            _ => {
-                let mut vec: Vec<usize> = Vec::new();
-                while let Ok(i) = IO_TIME.pop() {
-                    vec.push(i);
-                }
-
-                info!(
-                    "{:#?}, {}  average: {}",
-                    vec,
-                    vec.len(),
-                    vec.iter().sum::<usize>() / vec.len()
-                );
-            }
+    for _ in 0..LOOP_SIZE {
+        let conn = sys_sock_create();
+        if let Ok(_) = async_connect(conn, remote_endpoint).await {
+            append_task(echo_client_one(conn));
         }
+    }
+
+    append_task(async {
+        wait_print().await
     });
+
+}
+
+async fn wait_print() {
+    match async_timeout(
+        async_wait_some(|| IO_TIME.len() == LOOP_SIZE),
+        Duration::from_secs(10),
+    )
+    .await
+    {
+        _ => {
+            let mut vec: Vec<usize> = Vec::new();
+            while let Ok(i) = IO_TIME.pop() {
+                vec.push(i);
+            }
+
+            info!(
+                "{:#?}, {}  average: {}",
+                vec,
+                vec.len(),
+                vec.iter().sum::<usize>() / vec.len()
+            );
+        }
+    }
 }

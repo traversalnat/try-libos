@@ -8,6 +8,7 @@ use core::{
 use alloc::string::String;
 
 use alloc::boxed::Box;
+use stdio::log::info;
 use timer::get_time_ms;
 
 struct Yield {

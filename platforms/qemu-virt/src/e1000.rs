@@ -72,6 +72,15 @@ pub fn recv(buf: &mut [u8]) -> usize {
         let len = core::cmp::min(buf.len(), block.len());
         buf[..len].copy_from_slice(&block[..len]);
         return len;
+    } else if let Some(block) = E1000_DRIVER
+        .lock()
+        .as_mut()
+        .expect("E1000 Driver uninit")
+        .receive()
+    {
+        let len = core::cmp::min(buf.len(), block.len());
+        buf[..len].copy_from_slice(&block[..len]);
+        return len;
     }
     0
 }
