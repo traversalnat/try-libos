@@ -7,7 +7,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin, time::Duration};
-use executor::{async_spawn, async_wait};
+use executor::{async_spawn, async_wait, async_yield};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
@@ -27,7 +27,7 @@ fn init_ethernet() {
         loop {
             let val = PlatformImpl::rdtime() as i64;
             net::ETHERNET.poll(net::Instant::from_micros(val));
-            async_wait(Duration::from_millis(100)).await;
+            async_yield().await;
         }
     });
 }

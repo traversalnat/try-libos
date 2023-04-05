@@ -859,12 +859,12 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "benchmark",
  "executor",
  "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
- "server",
  "stdio",
  "thread",
 ]
@@ -1216,6 +1216,7 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "executor",
+ "futures",
  "mem",
  "net",
  "spin 0.9.4",
