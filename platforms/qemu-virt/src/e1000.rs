@@ -68,11 +68,7 @@ pub fn has_interrupt() -> bool {
 }
 
 pub fn recv(buf: &mut [u8]) -> usize {
-    if let Some(block) = RECV_RING.lock().pop_front() {
-        let len = core::cmp::min(buf.len(), block.len());
-        buf[..len].copy_from_slice(&block[..len]);
-        return len;
-    } else if let Some(block) = E1000_DRIVER
+    if let Some(block) = E1000_DRIVER
         .lock()
         .as_mut()
         .expect("E1000 Driver uninit")

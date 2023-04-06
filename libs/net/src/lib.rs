@@ -6,13 +6,17 @@ mod socket;
 
 extern crate alloc;
 use alloc::{borrow::ToOwned, fmt, format, string::String};
-use core::result::Result;
 use ethernet::GlobalEthernetDriver;
-pub use smoltcp::socket::TcpState;
 pub use ethernet::{Duration, Instant, SocketHandle};
-pub use smoltcp::wire::{IpAddress, IpEndpoint};
+pub use smoltcp::{
+    socket::TcpState,
+    wire::{IpAddress, IpEndpoint},
+    Error,
+};
 pub use socket::TcpListener;
 use spin::Once;
+
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// 这个接口定义了网络物理层receive, transmit
 pub trait PhyNet: Sync {
@@ -73,19 +77,13 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
     })
 }
 
-pub fn sys_sock_connect(
-    sock: SocketHandle,
-    remote_endpoint: impl Into<IpEndpoint>,
-) -> Result<(), String> {
+pub fn sys_sock_connect(sock: SocketHandle, remote_endpoint: impl Into<IpEndpoint>) -> Result<()> {
     if let Some(port) = ETHERNET.get_ephemeral_port() {
         ETHERNET.mark_port(port).unwrap();
-        return ETHERNET.with_socket_and_context(sock, |socket, cx| {
-            socket
-                .connect(cx, remote_endpoint, port)
-                .map_err(|err| format!("{:?}", err))
-        });
+        return ETHERNET
+            .with_socket_and_context(sock, |socket, cx| socket.connect(cx, remote_endpoint, port));
     } else {
-        return Err("No ephemeral port".to_owned());
+        return Err(Error::Unaddressable);
     }
 }
 
@@ -96,31 +94,13 @@ pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Option<TcpListene
     None
 }
 
-pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
-    ETHERNET.with_socket(sock, |socket| {
-        if socket.can_send() {
-            match socket.send_slice(va) {
-                Ok(size) => Some(size),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    })
+pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {
+    ETHERNET.with_socket(sock, |socket| socket.send_slice(va))
 }
 
 /// Receives data from a connected socket.
-pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Option<usize> {
-    ETHERNET.with_socket(sock, |socket| {
-        if socket.can_recv() {
-            match socket.recv_slice(va) {
-                Ok(size) => Some(size),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    })
+pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {
+    ETHERNET.with_socket(sock, |socket| socket.recv_slice(va))
 }
 
 /// Close a connected socket.
@@ -128,9 +108,9 @@ pub fn sys_sock_close(sock: SocketHandle) {
     ETHERNET.close_socket(sock);
 }
 
+use core::task::Context;
 /// async version
 pub use net_io::*;
-use core::task::Context;
 
 pub fn sys_sock_register_recv(cx: &mut Context<'_>, sock: SocketHandle) {
     ETHERNET.with_socket(sock, |socket| {
@@ -143,4 +123,3 @@ pub fn sys_sock_register_send(cx: &mut Context<'_>, sock: SocketHandle) {
         socket.register_send_waker(cx.waker());
     })
 }
-

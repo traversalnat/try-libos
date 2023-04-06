@@ -21,6 +21,7 @@ mod virt;
 extern crate alloc;
 extern crate timer as crate_timer;
 
+use executor::async_yield;
 use qemu_virt_ld as linker;
 
 use riscv::register::*;
@@ -78,7 +79,7 @@ extern "C" fn rust_main() -> ! {
     Virt::spawn(
         async {
             loop {
-                async_recv().await
+                async_yield().await;
             }
         },
         true,
@@ -97,8 +98,8 @@ extern "C" fn rust_main() -> ! {
 #[inline]
 fn get_slice(io: bool) -> u64 {
     match io {
-        true => 12500 * 4,
-        _ => 12500 * 10,
+        true => 12500 * 1,
+        _ => 12500 * 1,
     }
 }
 
@@ -156,11 +157,7 @@ extern "C" fn schedule() -> ! {
                     }
                     plic_complete(irq);
                 }
-                if task.io {
-                    add_task_transient(task);
-                } else {
-                    add_task_to_queue(task);
-                }
+                add_task_transient(task);
             }
             Trap::Exception(Exception::UserEnvCall) => {
                 use thread::TaskStatus::*;
