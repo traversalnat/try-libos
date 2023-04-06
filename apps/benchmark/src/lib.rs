@@ -26,7 +26,7 @@ use timer::get_time_ms;
 
 static IO_TIME: Lazy<ArrayQueue<usize>> = Lazy::new(|| ArrayQueue::new(120));
 
-const LOOP_SIZE: usize = 10;
+const LOOP_SIZE: usize = 100;
 
 // 计算密集型任务
 fn fib(n: i32) -> i32 {
@@ -67,19 +67,19 @@ pub async fn app_main() {
     // 创建10个I/O密集型任务和10个计算密集型任务
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(127, 0, 0, 1), 8080);
     let remote_endpoint = IpEndpoint::new(IpAddress::v4(47, 92, 33, 237), 6000);
-    let remote_endpoint = IpEndpoint::new(IpAddress::v4(192, 168, 1, 121), 6000);
+    // let remote_endpoint = IpEndpoint::new(IpAddress::v4(192, 168, 1, 121), 6000);
 
     let begin = get_time_ms();
     info!("ALL {begin}");
 
-    // for _ in 0..100 {
-    //     let _tid = spawn(
-    //         async move {
-    //             fib(37);
-    //         },
-    //         false,
-    //     );
-    // }
+    for _ in 0..100 {
+        let _tid = spawn(
+            async move {
+                fib(37);
+            },
+            false,
+        );
+    }
 
     // let conn = sys_sock_create();
     // if let Ok(_) = async_connect(conn, remote_endpoint).await {

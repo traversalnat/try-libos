@@ -33,13 +33,6 @@ fn init_ethernet() {
                     async_yield().await;
                 }
             });
-            append_task(async {
-                loop {
-                    let val = PlatformImpl::rdtime() as i64;
-                    net::ETHERNET.poll(net::Instant::from_millis(val));
-                    executor::async_wait_irq(IRQ::E1000_IRQ).await;
-                }
-            });
         },
         true,
     );

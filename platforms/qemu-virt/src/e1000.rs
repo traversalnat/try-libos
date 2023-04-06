@@ -19,10 +19,7 @@ use core::{
 };
 use futures::task::AtomicWaker;
 
-pub static ASYNC_RECV_WAKER: AtomicWaker = AtomicWaker::new();
 pub static ASYNC_WAIT_WAKER: AtomicWaker = AtomicWaker::new();
-
-static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
 
 // pub const E1000_IRQ: usize = 33;
 
@@ -90,7 +87,7 @@ pub fn can_send() -> bool {
 }
 
 pub fn can_recv() -> bool {
-    !RECV_RING.lock().is_empty()
+    has_interrupt()
 }
 
 pub fn send(buf: &[u8]) {
@@ -101,30 +98,6 @@ pub fn send(buf: &[u8]) {
         .send(buf);
 }
 
-fn async_recv_poll(cx: &mut Context<'_>) -> Poll<()> {
-    if has_interrupt() {
-        while let Some(block) = E1000_DRIVER
-            .lock()
-            .as_mut()
-            .expect("E1000 Driver uninit")
-            .receive()
-        {
-            let mut buf = vec![0u8; block.len()];
-            buf.copy_from_slice(&block);
-            RECV_RING.lock().push_back(buf);
-        }
-        Poll::Ready(())
-    } else {
-        ASYNC_RECV_WAKER.register(&cx.waker());
-        Poll::Pending
-    }
-}
-
-pub async fn async_recv() {
-    poll_fn(|cx| async_recv_poll(cx)).await
-}
-
 pub fn handle_interrupt() {
-    ASYNC_RECV_WAKER.wake();
     ASYNC_WAIT_WAKER.wake();
 }

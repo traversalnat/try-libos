@@ -37,7 +37,6 @@ use virt::Virt;
 pub use virt::Virt as PlatformImpl;
 
 use crate::{
-    e1000::async_recv,
     plic::{plic_claim, plic_complete, E1000_IRQ},
     tasks::{add_task_to_queue, add_task_transient, get_task_from_queue},
     timer::check_timer,
@@ -84,8 +83,7 @@ extern "C" fn rust_main() -> ! {
         },
         true,
     );
-
-    Virt::spawn(async { obj_main() }, true);
+    Virt::spawn(async { obj_main() }, false);
 
     let mut t = TaskControlBlock::ZERO;
     t.init(schedule as usize);
