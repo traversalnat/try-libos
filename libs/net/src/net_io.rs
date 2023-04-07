@@ -59,7 +59,7 @@ fn async_connect_poll(cx: &mut Context<'_>, sock: SocketHandle) -> Poll<()> {
     if sys_sock_status(sock).is_establised {
         Poll::Ready(())
     } else {
-        sys_sock_register_send(cx, sock);
+        sys_sock_register_recv(cx, sock);
         Poll::Pending
     }
 }
@@ -77,6 +77,7 @@ fn async_close_poll(cx: &mut Context<'_>, sock: SocketHandle) -> Poll<()> {
     }
 
     if sys_sock_status(sock).state == TcpState::Closed {
+        sys_sock_release(sock);
         return Poll::Ready(());
     }
 

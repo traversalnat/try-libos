@@ -106,7 +106,11 @@ pub fn sys_sock_recv(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {
 
 /// Close a connected socket.
 pub fn sys_sock_close(sock: SocketHandle) {
-    ETHERNET.close_socket(sock);
+    ETHERNET.with_socket(sock, |socket| socket.close());
+}
+
+pub fn sys_sock_release(sock: SocketHandle) {
+    ETHERNET.release_socket(sock);
 }
 
 use core::task::Context;
