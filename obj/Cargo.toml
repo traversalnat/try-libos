@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/benchmark", package = "benchmark" }
+app = { path = "../apps/server", package = "server" }
 platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
 stdio = { path = "../common/stdio" }
 executor = { path = "../common/executor" }

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 smoltcp = { version = "0.8.1", default-features = false, features = [
     "alloc",
+    "async",
     "socket-tcp",
     "socket-dhcpv4",
     "medium-ethernet",

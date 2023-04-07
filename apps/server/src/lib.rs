@@ -13,12 +13,12 @@ use thread::append_task;
 async fn echo(sender: SocketHandle) {
     let mut rx = vec![0; 1024];
     loop {
-        let mut recv_size = 0;
-        if let Some(size) = async_recv(sender, rx.as_mut_slice()).await {
-            async_send(sender, &mut rx[..size]).await;
-        } else {
-            info!("echo stop");
-            break;
+        match async_recv(sender, rx.as_mut_slice()).await {
+            Ok(size) => {async_send(sender, &mut rx[..size]).await;},
+            Err(e) => {
+                info!("echo stop {:#?}", e);
+                break;
+            }
         }
     }
 }
