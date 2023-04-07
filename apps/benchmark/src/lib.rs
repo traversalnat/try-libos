@@ -46,7 +46,7 @@ async fn echo_client_one(sender: SocketHandle) {
     let end: usize = get_time_ms();
     info!("CU {}", end - begin);
     IO_TIME.push(end - begin);
-    sys_sock_close(sender);
+    async_sock_close(sender).await;
 }
 
 async fn echo_client_basic(sender: SocketHandle){
@@ -60,7 +60,7 @@ async fn echo_client_basic(sender: SocketHandle){
         IO_TIME.push(end - begin);
         info!("{}", end - begin);
     }
-    sys_sock_close(sender);
+    async_sock_close(sender).await;
 }
 
 pub async fn app_main() {
