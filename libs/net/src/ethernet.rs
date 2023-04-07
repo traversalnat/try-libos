@@ -11,6 +11,7 @@ use smoltcp::{
 
 use spin::Mutex;
 
+use stdio::log::info;
 use var_bitmap::Bitmap;
 
 pub type TcpSocket = smoltcp::socket::TcpSocket<'static>;
@@ -324,17 +325,14 @@ impl GlobalEthernetDriver {
             .add_socket()
     }
 
-    pub fn close_socket(&self, handle: SocketHandle) {
+    /// release the socket, even it didn't close
+    pub fn release_socket(&self, handle: SocketHandle) {
         let mut binding = self.0.lock();
         let guard = binding.as_mut().expect("Uninitialized EthernetDriver");
         let socket = guard.get_socket(handle);
         let port = socket.local_endpoint().port;
-        socket.close();
-        // close_socket should and will be called more than once to shutdown the socket completely
-        if socket.state() == TcpState::Closed {
-            guard.release(handle);
-            guard.erase_port(port);
-        }
+        guard.release(handle);
+        guard.erase_port(port);
     }
 
     /// Enters a critical region and execute the provided closure with a mutable
