@@ -17,6 +17,7 @@ async fn echo(sender: SocketHandle) {
             Ok(size) => {async_send(sender, &mut rx[..size]).await;},
             Err(e) => {
                 info!("echo stop {:#?}", e);
+                sys_sock_close(sender);
                 break;
             }
         }

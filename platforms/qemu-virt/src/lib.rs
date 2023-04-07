@@ -58,9 +58,7 @@ extern "C" fn rust_main() -> ! {
     obj_main();
 
     tasks::block_on(async {
-        // recv packet
         loop {
-            e1000::async_recv();
             async_utils::async_yield().await;
         }
     });

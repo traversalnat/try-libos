@@ -29,8 +29,7 @@ pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
 fn async_recv_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Result<usize>> {
     let size = sys_sock_recv(sock, va)?;
     if size == 0 {
-        // sys_sock_register_recv(cx, sock);
-        cx.waker().wake_by_ref();
+        sys_sock_register_recv(cx, sock);
         Poll::Pending
     } else {
         Poll::Ready(Ok(size))
@@ -44,8 +43,7 @@ pub async fn async_recv(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {
 fn async_send_poll(cx: &mut Context<'_>, sock: SocketHandle, va: &mut [u8]) -> Poll<Result<usize>> {
     let size = sys_sock_send(sock, va)?;
     if size == 0 {
-        // sys_sock_register_send(cx, sock);
-        cx.waker().wake_by_ref();
+        sys_sock_register_send(cx, sock);
         Poll::Pending
     } else {
         Poll::Ready(Ok(size))

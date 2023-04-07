@@ -5,6 +5,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+
 use core::alloc::Layout;
 use isomorphic_drivers::{
     net::ethernet::{intel::e1000::E1000, structs::EthernetAddress as DriverEthernetAddress},
@@ -12,7 +13,13 @@ use isomorphic_drivers::{
 };
 use spin::{Lazy, Mutex};
 
-static RECV_RING: Lazy<Mutex<LinkedList<Vec<u8>>>> = Lazy::new(|| Mutex::new(LinkedList::new()));
+use core::{
+    future::poll_fn,
+    task::{Context, Poll},
+};
+use futures::task::AtomicWaker;
+
+pub static ASYNC_WAIT_WAKER: AtomicWaker = AtomicWaker::new();
 
 // pub const E1000_IRQ: usize = 33;
 
@@ -48,7 +55,8 @@ pub fn init(header: usize, size: usize) {
     *lock = Some(e1000);
 }
 
-pub fn handle_interrupt() -> bool {
+#[inline]
+pub fn has_interrupt() -> bool {
     E1000_DRIVER
         .lock()
         .as_mut()
@@ -57,28 +65,17 @@ pub fn handle_interrupt() -> bool {
 }
 
 pub fn recv(buf: &mut [u8]) -> usize {
-    if let Some(block) = RECV_RING.lock().pop_front() {
+    if let Some(block) = E1000_DRIVER
+        .lock()
+        .as_mut()
+        .expect("E1000 Driver uninit")
+        .receive()
+    {
         let len = core::cmp::min(buf.len(), block.len());
         buf[..len].copy_from_slice(&block[..len]);
         return len;
     }
     0
-}
-
-/// 中断来临时，负责收取
-pub fn async_recv() {
-    if handle_interrupt() {
-        while let Some(block) = E1000_DRIVER
-            .lock()
-            .as_mut()
-            .expect("E1000 Driver uninit")
-            .receive()
-        {
-            let mut buf = vec![0u8; block.len()];
-            buf.copy_from_slice(&block);
-            RECV_RING.lock().push_back(buf);
-        }
-    }
 }
 
 pub fn can_send() -> bool {
@@ -90,7 +87,7 @@ pub fn can_send() -> bool {
 }
 
 pub fn can_recv() -> bool {
-    !RECV_RING.lock().is_empty()
+    has_interrupt()
 }
 
 pub fn send(buf: &[u8]) {
@@ -99,4 +96,8 @@ pub fn send(buf: &[u8]) {
         .as_mut()
         .expect("E1000 Driver uninit")
         .send(buf);
+}
+
+pub fn handle_interrupt() {
+    ASYNC_WAIT_WAKER.wake();
 }
