@@ -12,7 +12,10 @@ pub async fn async_listen(port: u16) -> Result<TcpListener> {
     sys_sock_listen(sock, port)
 }
 
-fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<Result<SocketHandle>> {
+fn async_accept_poll(
+    cx: &mut Context<'_>,
+    listener: &mut TcpListener,
+) -> Poll<Result<SocketHandle>> {
     if sys_sock_status(listener.handle).is_establised {
         return Poll::Ready(Ok(listener.accept()?));
     }
@@ -20,7 +23,7 @@ fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<R
     Poll::Pending
 }
 
-pub async fn async_accept(listener: &mut TcpListener) -> Result<SocketHandle>{
+pub async fn async_accept(listener: &mut TcpListener) -> Result<SocketHandle> {
     poll_fn(|cx| async_accept_poll(cx, listener)).await
 }
 
@@ -66,4 +69,21 @@ pub async fn async_connect(sock: SocketHandle, remote_endpoint: IpEndpoint) -> R
         Ok(()) => Ok(poll_fn(|cx| async_connect_poll(cx, sock)).await),
         Err(e) => Err(e),
     }
+}
+
+fn async_close_poll(cx: &mut Context<'_>, sock: SocketHandle) -> Poll<()> {
+    if sys_sock_status(sock).is_open {
+        sys_sock_close(sock);
+    }
+
+    if sys_sock_status(sock).state == TcpState::Closed {
+        return Poll::Ready(());
+    }
+
+    sys_sock_register_send(cx, sock);
+    Poll::Pending
+}
+
+pub async fn async_sock_close(sock: SocketHandle) {
+    poll_fn(|cx| async_close_poll(cx, sock)).await;
 }

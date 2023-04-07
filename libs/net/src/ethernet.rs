@@ -329,10 +329,12 @@ impl GlobalEthernetDriver {
         let guard = binding.as_mut().expect("Uninitialized EthernetDriver");
         let socket = guard.get_socket(handle);
         let port = socket.local_endpoint().port;
-        // 直接关闭 socket, 不进入 CLOSE_WAIT
-        socket.abort();
-        guard.release(handle);
-        guard.erase_port(port);
+        socket.close();
+        // close_socket should and will be called more than once to shutdown the socket completely
+        if socket.state() == TcpState::Closed {
+            guard.release(handle);
+            guard.erase_port(port);
+        }
     }
 
     /// Enters a critical region and execute the provided closure with a mutable
