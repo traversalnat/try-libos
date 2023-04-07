@@ -15,9 +15,9 @@ use crossbeam_queue::ArrayQueue;
 
 pub use futures::{self, future::poll_fn, join};
 
-use crate::{syscall::sys_yield, TASKNUM};
+use crate::{syscall::sys_yield, TASKNUM, mm::KAllocator};
 
-pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static, KAllocator>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId(u64);
@@ -38,7 +38,7 @@ impl Task {
     pub fn new(future: impl Future<Output = ()> + Send + 'static) -> Task {
         Task {
             id: TaskId::new(), // new
-            future: Box::pin(future),
+            future: Box::pin_in(future, KAllocator),
         }
     }
 }

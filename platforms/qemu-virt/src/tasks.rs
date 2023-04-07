@@ -40,7 +40,7 @@ impl MlfqStruct {
         //     info!("{i} {}", self.queue[i].len());
         // }
         // info!("=========");
-        
+
         for _ in 0..NUM_LEVELS {
             let level = self.level;
             self.level += 1;
@@ -101,9 +101,10 @@ static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
     })
 });
 
+
 /// 用于存放系统调用传入的 future
 pub static GLOBAL_BOXED_FUTURE: Lazy<Mutex<PinBoxFuture>> =
-    Lazy::new(|| Mutex::new(Box::pin(async {})));
+    Lazy::new(|| Mutex::new(Box::pin_in(async {}, KAllocator)));
 
 /// Task 包含一个线程与一个协程队列
 pub struct Task {
@@ -126,7 +127,7 @@ impl Task {
             tid: tid,
             tcb: tcb,
             executor,
-            io: is_io
+            io: is_io,
         }
     }
 }
@@ -174,7 +175,7 @@ impl Task {
             self.executor.force_unlock();
         }
         let mut lock = GLOBAL_BOXED_FUTURE.lock();
-        let boxed_future = core::mem::replace(&mut *lock, Box::pin(async {}));
+        let boxed_future = core::mem::replace(&mut *lock, Box::pin_in(async {}, KAllocator));
         self.executor.lock().spawn(AsyncTask::new(boxed_future));
     }
 
