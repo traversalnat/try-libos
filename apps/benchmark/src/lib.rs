@@ -28,7 +28,7 @@ async fn echo_client(sender: SocketHandle) {
     async_recv(sender, rx.as_mut_slice()).await;
     let end = get_time_ms();
     info!("{}", end - begin);
-    sys_sock_close(sender);
+    async_sock_close(sender).await;
 }
 
 async fn echo_client_basic(index: usize, sender: SocketHandle) {
@@ -45,7 +45,7 @@ async fn echo_client_basic(index: usize, sender: SocketHandle) {
         let end = get_time_ms();
         info!("CU{index} {}", end - begin);
     }
-    sys_sock_close(sender);
+    async_sock_close(sender).await;
 }
 
 pub async fn app_main() {
