@@ -87,11 +87,12 @@ pub fn sys_sock_connect(sock: SocketHandle, remote_endpoint: impl Into<IpEndpoin
     }
 }
 
-pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Option<TcpListener> {
+pub fn sys_sock_listen(sock: SocketHandle, local_port: u16) -> Result<TcpListener> {
     if let Some(port) = ETHERNET.mark_port(local_port) {
-        return Some(TcpListener::new(sock, port));
+        return Ok(TcpListener::new(sock, port)?);
+    } else {
+        return Err(Error::Exhausted);
     }
-    None
 }
 
 pub fn sys_sock_send(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {

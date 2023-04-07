@@ -7,22 +7,20 @@ use stdio::log::info;
 
 use crate::*;
 
-fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<SocketHandle> {
-    match listener.accept() {
-        Some(handle) => Poll::Ready(handle),
-        _ => {
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        }
-    }
-}
-
-pub async fn async_listen(port: u16) -> Option<TcpListener> {
+pub async fn async_listen(port: u16) -> Result<TcpListener> {
     let sock = sys_sock_create();
     sys_sock_listen(sock, port)
 }
 
-pub async fn async_accept(listener: &mut TcpListener) -> SocketHandle {
+fn async_accept_poll(cx: &mut Context<'_>, listener: &mut TcpListener) -> Poll<Result<SocketHandle>> {
+    if sys_sock_status(listener.handle).is_establised {
+        return Poll::Ready(Ok(listener.accept()?));
+    }
+    sys_sock_register_send(cx, listener.handle);
+    Poll::Pending
+}
+
+pub async fn async_accept(listener: &mut TcpListener) -> Result<SocketHandle>{
     poll_fn(|cx| async_accept_poll(cx, listener)).await
 }
 
@@ -58,7 +56,7 @@ fn async_connect_poll(cx: &mut Context<'_>, sock: SocketHandle) -> Poll<()> {
     if sys_sock_status(sock).is_establised {
         Poll::Ready(())
     } else {
-        cx.waker().wake_by_ref();
+        sys_sock_register_send(cx, sock);
         Poll::Pending
     }
 }
