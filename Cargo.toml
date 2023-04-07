@@ -18,7 +18,6 @@ members = [
     "apps/async_echo",
     "apps/echo",
     "apps/server",
-    "apps/client",
     "apps/benchmark",
     "obj",
 ]
