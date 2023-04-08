@@ -6,6 +6,7 @@ use core::{
 use stdio::log::info;
 
 use crate::*;
+use crate::TcpState::*;
 
 pub async fn async_listen(port: u16) -> Result<TcpListener> {
     let sock = sys_sock_create();
@@ -16,10 +17,10 @@ fn async_accept_poll(
     cx: &mut Context<'_>,
     listener: &mut TcpListener,
 ) -> Poll<Result<SocketHandle>> {
-    if sys_sock_status(listener.handle).is_establised {
+    if sys_sock_status(listener.handle).is_active {
         return Poll::Ready(Ok(listener.accept()?));
     }
-    sys_sock_register_send(cx, listener.handle);
+    sys_sock_register_recv(cx, listener.handle);
     Poll::Pending
 }
 
@@ -56,7 +57,7 @@ pub async fn async_send(sock: SocketHandle, va: &mut [u8]) -> Result<usize> {
 }
 
 fn async_connect_poll(cx: &mut Context<'_>, sock: SocketHandle) -> Poll<()> {
-    if sys_sock_status(sock).is_establised {
+    if sys_sock_status(sock).state == Established {
         Poll::Ready(())
     } else {
         sys_sock_register_recv(cx, sock);

@@ -30,8 +30,8 @@ async fn echo(sender: SocketHandle) {
 
 pub async fn app_main() {
     let mut listener = async_listen(6000).await.unwrap();
-    info!("wait for new connection");
     loop {
+        info!("wait for new connection");
         let sender = async_accept(&mut listener).await.expect("accept error");
         info!("new connection");
         append_task(echo(sender));

@@ -6,12 +6,13 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use executor::{IRQ, async_yield};
+use executor::{IRQ, async_yield, async_wait_irq};
 use thread::append_task;
 use core::{future::Future, pin::Pin, time::Duration};
 
 use platform::{Platform, PlatformImpl, MACADDR};
 use stdio::log::info;
+use timer::get_time_us;
 
 #[no_mangle]
 #[repr(align(2))]
@@ -28,9 +29,16 @@ fn init_ethernet() {
         async {
             append_task(async {
                 loop {
-                    let val = PlatformImpl::rdtime() as i64;
+                    let val = get_time_us() as i64;
                     net::ETHERNET.poll(net::Instant::from_millis(val));
                     async_yield().await;
+                }
+            });
+            append_task(async {
+                loop {
+                    let val = get_time_us() as i64;
+                    net::ETHERNET.poll(net::Instant::from_millis(val));
+                    async_wait_irq(IRQ::E1000_IRQ).await;
                 }
             });
         },

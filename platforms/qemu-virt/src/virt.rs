@@ -1,12 +1,7 @@
 extern crate alloc;
 extern crate timer;
 
-use crate::{
-    e1000,
-    syscall::*,
-    timer::get_time_us,
-    consts::*,
-};
+use crate::{consts::*, e1000, syscall::*, timer::get_time_us};
 use alloc::boxed::Box;
 use core::{future::Future, task::Context};
 use executor::IRQ;

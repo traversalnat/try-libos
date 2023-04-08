@@ -40,7 +40,6 @@ pub fn init(net: &'static dyn PhyNet, macaddr: &[u8; 6]) {
 pub struct SocketState {
     pub is_active: bool,
     pub is_listening: bool,
-    pub is_establised: bool,
     pub is_open: bool,
     pub can_send: bool,
     pub can_recv: bool,
@@ -52,7 +51,6 @@ impl fmt::Debug for SocketState {
         f.debug_struct("SocketState")
             .field("is_active", &self.is_active)
             .field("is_listening", &self.is_listening)
-            .field("is_establised", &self.is_establised)
             .field("is_open", &self.is_open)
             .field("can_send", &self.can_send)
             .field("can_recv", &self.can_recv)
@@ -69,7 +67,6 @@ pub fn sys_sock_status(sock: SocketHandle) -> SocketState {
     ETHERNET.with_socket(sock, |socket| SocketState {
         is_active: socket.is_active(),
         is_listening: socket.is_listening(),
-        is_establised: socket.state() == TcpState::Established,
         is_open: socket.is_open(),
         can_send: socket.can_send(),
         can_recv: socket.can_recv(),
