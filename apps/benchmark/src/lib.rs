@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 #![macro_use]
 
+extern crate alloc;
+
 use core::time::Duration;
 
 use alloc::{vec, vec::Vec};
@@ -19,7 +21,6 @@ use futures::{
 use spin::Lazy;
 use thread::{append_task, spawn};
 
-use mem::*;
 use net::*;
 use stdio::log::info;
 use timer::get_time_ms;
@@ -80,14 +81,14 @@ pub async fn app_main() {
     let begin = get_time_ms();
     info!("ALL {begin}");
 
-    for _ in 0..100 {
-        let _tid = spawn(
-            async move {
-                fib(37);
-            },
-            false,
-        );
-    }
+    // for _ in 0..100 {
+    //     let _tid = spawn(
+    //         async move {
+    //             fib(37);
+    //         },
+    //         false,
+    //     );
+    // }
 
     // let conn = sys_sock_create();
     // if let Ok(_) = async_connect(conn, remote_endpoint).await {

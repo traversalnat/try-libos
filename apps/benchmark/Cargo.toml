@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 executor = {path = "../../common/executor"}
 timer = {path = "../../common/timer"}
-mem = { path = "../../common/mem" }
 net = { path = "../../libs/net" }
 thread = {path = "../../libs/thread"}
 stdio = { path = "../../common/stdio" }

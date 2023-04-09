@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
-use stdio::log::info;
+
 
 use core::{
     future::Future,
@@ -15,9 +15,9 @@ use crossbeam_queue::ArrayQueue;
 
 pub use futures::{self, future::poll_fn, join};
 
-use crate::{syscall::sys_yield, TASKNUM, mm::KAllocator};
+use crate::{syscall::sys_yield, TASKNUM};
 
-pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static, KAllocator>>;
+pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId(u64);
@@ -38,7 +38,7 @@ impl Task {
     pub fn new(future: impl Future<Output = ()> + Send + 'static) -> Task {
         Task {
             id: TaskId::new(), // new
-            future: Box::pin_in(future, KAllocator),
+            future: Box::pin(future),
         }
     }
 }
@@ -110,10 +110,6 @@ impl Executor {
         self.ticks
     }
 
-    pub fn len(&self) -> usize {
-        self.task_queue.len()
-    }
-
     fn run_ready_tasks(&mut self) {
         let tasks = &mut self.tasks;
         let task_queue = &mut self.task_queue;
@@ -150,7 +146,7 @@ impl Executor {
         let waker_cache = &mut self.waker_cache;
 
         // if current task don't has waker_cache, move it to new thread
-        if task_queue.len() > 1 && !waker_cache.contains_key(&self.current) {
+        if task_queue.len() > 1 {
             let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
             let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {

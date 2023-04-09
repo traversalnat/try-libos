@@ -1,9 +1,6 @@
 extern crate alloc;
 use alloc::{
     alloc::{alloc, dealloc},
-    collections::LinkedList,
-    vec,
-    vec::Vec,
 };
 
 use core::alloc::Layout;
@@ -13,10 +10,7 @@ use isomorphic_drivers::{
 };
 use spin::{Lazy, Mutex};
 
-use core::{
-    future::poll_fn,
-    task::{Context, Poll},
-};
+
 use futures::task::AtomicWaker;
 
 pub static ASYNC_WAIT_WAKER: AtomicWaker = AtomicWaker::new();

@@ -88,7 +88,6 @@ stdio = {{ path = \"../common/stdio\" }}
 executor = {{ path = \"../common/executor\" }}
 thread = {{ path = \"../libs/thread\" }}
 net = {{ path = \"../libs/net\" }}
-mem = {{ path = \"../common/mem\", features = [{2}] }}
 timer = {{ path = \"../common/timer\", features = [] }}
 
 [build-dependencies]

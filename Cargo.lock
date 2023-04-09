@@ -167,7 +167,6 @@ dependencies = [
  "crossbeam-queue",
  "executor",
  "futures",
- "mem",
  "net",
  "spin 0.9.4",
  "stdio",
@@ -308,7 +307,6 @@ dependencies = [
 name = "client"
 version = "0.1.0"
 dependencies = [
- "mem",
  "net",
  "stdio",
  "thread",
@@ -847,7 +845,6 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 name = "net"
 version = "0.1.0"
 dependencies = [
- "mem",
  "smoltcp",
  "spin 0.9.4",
  "stdio",
@@ -883,12 +880,11 @@ dependencies = [
 name = "obj"
 version = "0.1.0"
 dependencies = [
+ "benchmark",
  "executor",
- "mem",
  "net",
  "qemu-virt",
  "qemu-virt-ld",
- "server",
  "stdio",
  "thread",
  "timer 0.1.0",
@@ -1244,7 +1240,6 @@ version = "0.1.0"
 dependencies = [
  "executor",
  "futures",
- "mem",
  "net",
  "spin 0.9.4",
  "stdio",
@@ -1425,9 +1420,6 @@ dependencies = [
 [[package]]
 name = "var_bitmap"
 version = "0.1.0"
-dependencies = [
- "mem",
-]
 
 [[package]]
 name = "version_check"

@@ -1,8 +1,9 @@
 #![no_std]
 
+extern crate alloc;
+
 use alloc::{format, string::String, vec};
 use log::info;
-use mem::*;
 use net::*;
 use stdio::*;
 use thread::{append_task};
@@ -12,10 +13,10 @@ async fn echo_client(index: usize, sender: SocketHandle) {
     let mut rx = vec![0 as u8; tx.len()];
     loop {
         info!("{index} try send");
-        if let Some(size) = async_send(sender, unsafe { tx.as_bytes_mut() }).await {
+        if let Ok(size) = async_send(sender, unsafe { tx.as_bytes_mut() }).await {
             info!("{index} send {size} words");
         }
-        if let Some(_) = async_recv(sender, rx.as_mut_slice()).await {
+        if let Ok(_) = async_recv(sender, rx.as_mut_slice()).await {
             info!("{index} receive {tx}");
         }
         if !sys_sock_status(sender).is_active {

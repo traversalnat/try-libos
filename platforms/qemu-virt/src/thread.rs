@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use crate::{mm::KAllocator, syscall::sys_exit, STACK_SIZE};
+use crate::{syscall::sys_exit, STACK_SIZE};
 use alloc::{
     alloc::{alloc, dealloc},
     boxed::Box,

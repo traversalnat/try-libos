@@ -4,13 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-app = { path = "../apps/server", package = "server" }
+app = { path = "../apps/benchmark", package = "benchmark" }
 platform = { path = "../platforms/qemu-virt", package = "qemu-virt" }
 stdio = { path = "../common/stdio" }
 executor = { path = "../common/executor" }
 thread = { path = "../libs/thread" }
 net = { path = "../libs/net" }
-mem = { path = "../common/mem", features = [] }
 timer = { path = "../common/timer", features = [] }
 
 [build-dependencies]

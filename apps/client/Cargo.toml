@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mem = { path = "../../common/mem" }
 net = { path = "../../libs/net" }
 stdio = { path = "../../common/stdio" }
 thread = {path = "../../libs/thread"}

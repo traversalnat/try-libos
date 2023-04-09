@@ -104,10 +104,9 @@ pub fn sys_append_task<F>(future: F) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    use crate::mm::KAllocator;
     drop(core::mem::replace(
         &mut *GLOBAL_BOXED_FUTURE.lock(),
-        Box::pin_in(future, KAllocator),
+        Box::pin(future),
     ));
     syscall(SYSCALL_APPEND_TASK, [0, 0, 0])
 }

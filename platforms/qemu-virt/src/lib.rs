@@ -4,6 +4,7 @@
 #![feature(unboxed_closures, fn_traits)]
 #![feature(allocator_api)]
 #![allow(unreachable_code)]
+#![feature(alloc_error_handler)]
 
 mod async_executor;
 mod consts;
@@ -55,9 +56,8 @@ extern "C" fn rust_main() -> ! {
     unsafe {
         layout.zero_bss();
     }
-    let (heap_base, heap_size) = Virt::heap();
+    let (heap_base, _heap_size) = Virt::heap();
     mm::init_heap(heap_base, MM_SIZE);
-    mem::init_heap(heap_base + MM_SIZE, heap_size - MM_SIZE);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 
@@ -130,6 +130,7 @@ extern "C" fn schedule() -> ! {
 
                 task.set_status(TaskStatus::Blocking);
 
+                // 有些事放在特权线程中做
                 let new_ticks = task.ticks();
                 if new_ticks == ticks {
                     if task.io {

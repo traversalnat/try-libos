@@ -4,7 +4,6 @@ extern crate alloc;
 
 use crate::{
     async_executor::{Executor, PinBoxFuture, Task as AsyncTask},
-    mm::KAllocator,
     syscall::{sys_exit, sys_get_tid},
     thread,
     thread::{TCBlock, TaskStatus},
@@ -24,7 +23,7 @@ const NUM_LEVELS: usize = 2;
 
 // MLFQ
 struct MlfqStruct {
-    queue: Vec<VecDeque<Task, KAllocator>, KAllocator>,
+    queue: Vec<VecDeque<Task>>,
     task: Option<Task>, // 时间片未使用完毕的任务
     level: usize,       // 0..NUM_SLICES_LEVELS
 }
@@ -90,9 +89,9 @@ impl MlfqStruct {
 
 // MLFQ
 static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
-    let mut v = Vec::new_in(KAllocator);
+    let mut v = Vec::new();
     for _ in 0..NUM_LEVELS {
-        v.push(VecDeque::new_in(KAllocator));
+        v.push(VecDeque::new());
     }
     Mutex::new(MlfqStruct {
         queue: v,
@@ -104,7 +103,7 @@ static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
 
 /// 用于存放系统调用传入的 future
 pub static GLOBAL_BOXED_FUTURE: Lazy<Mutex<PinBoxFuture>> =
-    Lazy::new(|| Mutex::new(Box::pin_in(async {}, KAllocator)));
+    Lazy::new(|| Mutex::new(Box::pin(async {})));
 
 /// Task 包含一个线程与一个协程队列
 pub struct Task {
@@ -175,7 +174,7 @@ impl Task {
             self.executor.force_unlock();
         }
         let mut lock = GLOBAL_BOXED_FUTURE.lock();
-        let boxed_future = core::mem::replace(&mut *lock, Box::pin_in(async {}, KAllocator));
+        let boxed_future = core::mem::replace(&mut *lock, Box::pin(async {}));
         self.executor.lock().spawn(AsyncTask::new(boxed_future));
     }
 

@@ -1,8 +1,7 @@
 #![allow(dead_code)]
-use core::{
-    alloc::{AllocError, Allocator, GlobalAlloc, Layout},
-    ptr::{slice_from_raw_parts_mut, NonNull},
-};
+#![allow(unused_imports)]
+
+use core::alloc::{Allocator, GlobalAlloc, Layout};
 use good_memory_allocator::SpinLockedAllocator;
 
 use crate::trap::{pop_on, push_off};
@@ -16,29 +15,40 @@ pub(crate) fn init_heap(_heap_base: usize, _heap_size: usize) {
     }
 }
 
-/// 调度器专用内存分配器
-pub struct KAllocator;
+struct GlobalAllocator; 
+/// global allocator
+#[cfg(not(feature = "std"))]
+#[global_allocator]
+static GLOBAL_ALLOCATOR_IMPL: GlobalAllocator = GlobalAllocator {};
 
-unsafe impl Allocator for KAllocator {
-    #[inline]
-    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+unsafe impl GlobalAlloc for GlobalAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let sstatus = push_off();
-        let result = unsafe {
-            let ptr: *mut u8 = HEAP_ALLOCATOR.alloc(layout);
-            let ptr: *mut [u8] = slice_from_raw_parts_mut(ptr, layout.size());
-            match NonNull::new(ptr) {
-                Some(nonull) => Ok(nonull),
-                _ => Err(AllocError),
-            }
-        };
+        let ret = HEAP_ALLOCATOR.alloc(layout);
         pop_on(sstatus);
-        result
+        ret
     }
 
-    #[inline]
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let sstatus = push_off();
-        HEAP_ALLOCATOR.dealloc(ptr.as_ptr(), layout);
+        let ret = HEAP_ALLOCATOR.dealloc(ptr, layout);
         pop_on(sstatus);
+        ret
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let sstatus = push_off();
+        let ret = HEAP_ALLOCATOR.realloc(ptr, layout, new_size);
+        pop_on(sstatus);
+        ret
     }
 }
+
+#[cfg(not(feature = "std"))]
+#[alloc_error_handler]
+/// panic when heap allocation error occurs
+pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+    panic!("Heap allocation error, layout = {:?}", layout);
+}
+
+pub extern crate alloc;

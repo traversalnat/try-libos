@@ -2,7 +2,6 @@
 
 extern crate alloc;
 use crate::{
-    mm::KAllocator,
     tasks::{add_task_to_queue, Task},
     trap::*,
     Virt,
@@ -41,8 +40,8 @@ impl Ord for TimerCondVar {
 }
 
 /// TIMERS: 等待队列，操作时必须关闭中断
-pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar, KAllocator>>> =
-    Lazy::new(|| Mutex::new(Heap::new_in(KAllocator)));
+pub static TIMERS: Lazy<Mutex<Heap<TimerCondVar>>> =
+    Lazy::new(|| Mutex::new(Heap::new()));
 
 pub(crate) fn move_timer(expire_ms: usize, task: Task) {
     TIMERS.lock().push(TimerCondVar { expire_ms, task });
