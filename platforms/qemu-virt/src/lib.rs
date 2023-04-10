@@ -27,7 +27,7 @@ use qemu_virt_ld as linker;
 
 use riscv::register::*;
 use sbi_rt::*;
-use stdio::log::{self};
+use stdio::log::{self, info};
 use thread::*;
 
 use uart_16550::MmioSerialPort;
@@ -130,7 +130,6 @@ extern "C" fn schedule() -> ! {
 
                 task.set_status(TaskStatus::Blocking);
 
-                // 有些事放在特权线程中做
                 let new_ticks = task.ticks();
                 if new_ticks == ticks {
                     if task.io {

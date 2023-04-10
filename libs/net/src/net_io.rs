@@ -17,10 +17,10 @@ fn async_accept_poll(
     cx: &mut Context<'_>,
     listener: &mut TcpListener,
 ) -> Poll<Result<SocketHandle>> {
-    if sys_sock_status(listener.handle).state == TcpState::Established {
+    if sys_sock_status(listener.handle).is_active {
         return Poll::Ready(Ok(listener.accept()?));
     }
-    sys_sock_register_send(cx, listener.handle);
+    sys_sock_register_recv(cx, listener.handle);
     Poll::Pending
 }
 
