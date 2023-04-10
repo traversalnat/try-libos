@@ -57,7 +57,7 @@ extern "C" fn rust_main() -> ! {
         layout.zero_bss();
     }
     let (heap_base, _heap_size) = Virt::heap();
-    mm::init_heap(heap_base, MM_SIZE);
+    mm::init_heap(heap_base, MEMORY_SIZE);
 
     virt::init(unsafe { MmioSerialPort::new(0x1000_0000) });
 

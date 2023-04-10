@@ -87,7 +87,7 @@ impl platform::Platform for Virt {
     #[inline]
     fn heap() -> (usize, usize) {
         let layout = linker::KernelLayout::locate();
-        (layout.end(), MEMORY - layout.len())
+        (layout.end(), MEMORY_SIZE - layout.len())
     }
 
     #[inline]

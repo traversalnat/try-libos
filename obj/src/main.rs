@@ -34,13 +34,6 @@ fn init_ethernet() {
                     async_yield().await;
                 }
             });
-            append_task(async {
-                loop {
-                    let val = get_time_us() as i64;
-                    net::ETHERNET.poll(net::Instant::from_millis(val));
-                    async_wait_irq(IRQ::E1000_IRQ).await;
-                }
-            });
         },
         true,
     );

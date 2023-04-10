@@ -1,7 +1,7 @@
 // 内核堆内存
 pub const MM_SIZE: usize = 32 << 20;
 // 物理内存容量
-pub const MEMORY: usize = 128 << 20 - 1;
+pub const MEMORY_SIZE: usize = 128 << 20 - 1;
 
 // 单个线程可容纳协程数量
 pub const TASKNUM: usize = 300;
