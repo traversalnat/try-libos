@@ -81,14 +81,14 @@ pub async fn app_main() {
     let begin = get_time_ms();
     info!("ALL {begin}");
 
-    // for _ in 0..100 {
-    //     let _tid = spawn(
-    //         async move {
-    //             fib(37);
-    //         },
-    //         false,
-    //     );
-    // }
+    for _ in 0..100 {
+        let _tid = spawn(
+            async move {
+                fib(37);
+            },
+            false,
+        );
+    }
 
     // let conn = sys_sock_create();
     // if let Ok(_) = async_connect(conn, remote_endpoint).await {

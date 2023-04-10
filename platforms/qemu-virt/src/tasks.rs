@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use crate::{
-    async_executor::{Executor, PinBoxFuture, Task as AsyncTask},
+    async_executor::{AsyncTask, Executor, PinBoxFuture},
     syscall::{sys_exit, sys_get_tid},
     thread,
     thread::{TCBlock, TaskStatus},
@@ -100,7 +100,6 @@ static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
     })
 });
 
-
 /// 用于存放系统调用传入的 future
 pub static GLOBAL_BOXED_FUTURE: Lazy<Mutex<PinBoxFuture>> =
     Lazy::new(|| Mutex::new(Box::pin(async {})));
@@ -146,6 +145,14 @@ impl Task {
             self.executor.force_unlock();
         }
         self.executor.lock().ticks()
+    }
+
+    pub fn queue_len(&self) -> usize {
+        // safe
+        unsafe {
+            self.executor.force_unlock();
+        }
+        self.executor.lock().queue_len()
     }
 
     // create new Task steal tasks in Task's executor

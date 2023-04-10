@@ -135,13 +135,15 @@ extern "C" fn schedule() -> ! {
                 if new_ticks == ticks {
                     if task.io {
                         // steal coroutine from task to new IO task
-                        if let Some(new_task) = task.steal() {
-                            task.io = false;
+                        if let Some(mut new_task) = task.steal() {
+                            new_task.io = false;
                             add_task_to_queue(new_task);
                         }
                     }
                 } else {
-                    task.io = true;
+                    if new_ticks > task.queue_len() {
+                        task.io = true;
+                    }
                 }
 
                 add_task_to_queue(task);

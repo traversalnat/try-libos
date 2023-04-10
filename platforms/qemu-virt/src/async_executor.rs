@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 
 use alloc::{collections::BTreeMap, sync::Arc};
 
-
 use core::{
     future::Future,
     pin::Pin,
@@ -20,36 +19,38 @@ use crate::{syscall::sys_yield, TASKNUM};
 pub type PinBoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct TaskId(u64);
+struct AsyncTaskId(u64);
 
-impl TaskId {
+impl AsyncTaskId {
     fn new() -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
-        TaskId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
+        AsyncTaskId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
 }
 
-pub struct Task {
-    id: TaskId, // new
+pub struct AsyncTask {
+    id: AsyncTaskId,
     future: PinBoxFuture,
+    io: bool, // 默认不是 I/O 任务
 }
 
-impl Task {
-    pub fn new(future: impl Future<Output = ()> + Send + 'static) -> Task {
-        Task {
-            id: TaskId::new(), // new
+impl AsyncTask {
+    pub fn new(future: impl Future<Output = ()> + Send + 'static) -> AsyncTask {
+        AsyncTask {
+            id: AsyncTaskId::new(),
             future: Box::pin(future),
+            io: false,
         }
     }
 }
 
 struct TaskWaker {
-    task_id: TaskId,
-    task_queue: Arc<ArrayQueue<TaskId>>,
+    task_id: AsyncTaskId,
+    task_queue: Arc<ArrayQueue<AsyncTaskId>>,
 }
 
 impl TaskWaker {
-    fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+    fn new(task_id: AsyncTaskId, task_queue: Arc<ArrayQueue<AsyncTaskId>>) -> Waker {
         Waker::from(Arc::new(TaskWaker {
             task_id,
             task_queue,
@@ -78,10 +79,10 @@ impl alloc::task::Wake for TaskWaker {
 
 /// Runtime definition
 pub struct Executor {
-    tasks: BTreeMap<TaskId, Task>,
-    task_queue: Arc<ArrayQueue<TaskId>>,
-    waker_cache: BTreeMap<TaskId, Waker>,
-    current: TaskId,
+    tasks: BTreeMap<AsyncTaskId, AsyncTask>,
+    task_queue: Arc<ArrayQueue<AsyncTaskId>>,
+    waker_cache: BTreeMap<AsyncTaskId, Waker>,
+    current: AsyncTaskId,
     ticks: usize,
 }
 
@@ -91,14 +92,14 @@ impl Executor {
             tasks: BTreeMap::new(),
             task_queue: Arc::new(ArrayQueue::new(TASKNUM)),
             waker_cache: BTreeMap::new(),
-            current: TaskId(0),
+            current: AsyncTaskId(0),
             ticks: 0,
         }
     }
 }
 
 impl Executor {
-    pub fn spawn(&mut self, task: Task) {
+    pub fn spawn(&mut self, task: AsyncTask) {
         let task_id = task.id;
         if self.tasks.insert(task.id, task).is_some() {
             panic!("task with same ID already in tasks");
@@ -108,6 +109,10 @@ impl Executor {
 
     pub fn ticks(&self) -> usize {
         self.ticks
+    }
+
+    pub fn queue_len(&self) -> usize {
+        self.tasks.len()
     }
 
     fn run_ready_tasks(&mut self) {
@@ -132,7 +137,9 @@ impl Executor {
                     tasks.remove(&task_id);
                     waker_cache.remove(&task_id);
                 }
-                Poll::Pending => {}
+                Poll::Pending => {
+                    task.io = true; // task is I/O task
+                }
             }
 
             self.ticks += 1;
@@ -145,10 +152,15 @@ impl Executor {
         let tasks = &mut self.tasks;
         let waker_cache = &mut self.waker_cache;
 
+        let current = match tasks.get_mut(&self.current) {
+            Some(task) => task,
+            None => return None,
+        };
+
         // if current task don't has waker_cache, move it to new thread
-        if task_queue.len() > 1 {
-            let new_task_queue: Arc<ArrayQueue<TaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
-            let mut new_tasks: BTreeMap<TaskId, Task> = BTreeMap::new();
+        if task_queue.len() > 1 && !current.io {
+            let new_task_queue: Arc<ArrayQueue<AsyncTaskId>> = Arc::new(ArrayQueue::new(TASKNUM));
+            let mut new_tasks: BTreeMap<AsyncTaskId, AsyncTask> = BTreeMap::new();
             while let Ok(task_id) = task_queue.pop() {
                 new_task_queue.push(task_id).expect("ArrayQueue push error");
                 if let Some(task) = tasks.remove(&task_id) {
@@ -162,7 +174,7 @@ impl Executor {
                 task_queue: new_task_queue,
                 tasks: new_tasks,
                 waker_cache: BTreeMap::new(),
-                current: TaskId(0),
+                current: AsyncTaskId(0),
                 ticks: 0,
             });
         }

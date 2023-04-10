@@ -168,7 +168,7 @@ dependencies = [
  "executor",
  "futures",
  "net",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "thread",
  "timer 0.1.0",
@@ -204,15 +204,6 @@ dependencies = [
  "fastrand",
  "futures-lite",
  "once_cell",
-]
-
-[[package]]
-name = "buddy_system_allocator"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4e85e760e105b46ae0bd1236578793c6c147ae7463fe95c8350296b8bfcb830"
-dependencies = [
- "spin 0.7.1",
 ]
 
 [[package]]
@@ -510,7 +501,7 @@ version = "0.1.0"
 dependencies = [
  "async-task 1.3.1",
  "futures",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "timer 0.1.0",
 ]
@@ -637,7 +628,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1651659e016ea4259760966432aebcc96c81e26743fb018c59585ddd677127e"
 dependencies = [
  "either",
- "spin 0.9.4",
+ "spin",
 ]
 
 [[package]]
@@ -653,7 +644,7 @@ dependencies = [
  "pnet",
  "rawsock",
  "smoltcp",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "timer 0.2.0",
 ]
@@ -730,7 +721,7 @@ dependencies = [
  "bit_field",
  "bitflags",
  "log",
- "spin 0.9.4",
+ "spin",
  "volatile 0.3.0",
 ]
 
@@ -747,7 +738,7 @@ dependencies = [
 name = "kernel-context"
 version = "0.1.0"
 dependencies = [
- "spin 0.9.4",
+ "spin",
 ]
 
 [[package]]
@@ -813,14 +804,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
-name = "mem"
-version = "0.1.0"
-dependencies = [
- "buddy_system_allocator",
- "good_memory_allocator",
-]
-
-[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,7 +829,7 @@ name = "net"
 version = "0.1.0"
 dependencies = [
  "smoltcp",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "var_bitmap",
 ]
@@ -1106,12 +1089,11 @@ dependencies = [
  "good_memory_allocator",
  "isomorphic_drivers",
  "kernel-context",
- "mem",
  "platform",
  "qemu-virt-ld",
  "riscv",
  "sbi-rt",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "timer 0.1.0",
  "uart_16550",
@@ -1241,7 +1223,7 @@ dependencies = [
  "executor",
  "futures",
  "net",
- "spin 0.9.4",
+ "spin",
  "stdio",
  "thread",
 ]
@@ -1280,12 +1262,6 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13287b4da9d1207a4f4929ac390916d64eacfe236a487e9a9f5b3be392be5162"
-
-[[package]]
-name = "spin"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6002a767bff9e83f8eeecf883ecb8011875a21ae8da43bffb817a57e78cc09"
@@ -1304,7 +1280,7 @@ name = "stdio"
 version = "0.0.1"
 dependencies = [
  "log",
- "spin 0.9.4",
+ "spin",
 ]
 
 [[package]]
@@ -1348,7 +1324,7 @@ dependencies = [
 name = "thread"
 version = "0.1.0"
 dependencies = [
- "spin 0.9.4",
+ "spin",
 ]
 
 [[package]]
@@ -1366,7 +1342,7 @@ dependencies = [
 name = "timer"
 version = "0.1.0"
 dependencies = [
- "spin 0.9.4",
+ "spin",
 ]
 
 [[package]]
