@@ -67,11 +67,11 @@ impl platform::Platform for Virt {
     }
 
     // append_task to current thread
-    fn append_task<F>(f: F, tid: usize) -> usize
+    fn append_task<F>(f: F) -> usize
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        sys_append_task(f, tid)
+        sys_append_task(f)
     }
 
     #[inline]
