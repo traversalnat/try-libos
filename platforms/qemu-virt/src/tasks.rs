@@ -100,10 +100,6 @@ static MLFQ: Lazy<Mutex<MlfqStruct>> = Lazy::new(|| {
     })
 });
 
-/// 用于存放系统调用传入的 future
-pub static GLOBAL_BOXED_FUTURE: Lazy<Mutex<PinBoxFuture>> =
-    Lazy::new(|| Mutex::new(Box::pin(async {})));
-
 /// Task 包含一个线程与一个协程队列
 pub struct Task {
     /// ID
@@ -174,15 +170,11 @@ impl Task {
         None
     }
 
-    /// append the GLOBAL_BOXED_FUTURE to executor
-    /// the GLOBAL_BOXED_FUTURE will set by the syscall
-    pub fn append(&self) {
+    pub fn append(&self, future: PinBoxFuture) {
         unsafe {
             self.executor.force_unlock();
         }
-        let mut lock = GLOBAL_BOXED_FUTURE.lock();
-        let boxed_future = core::mem::replace(&mut *lock, Box::pin(async {}));
-        self.executor.lock().spawn(AsyncTask::new(boxed_future));
+        self.executor.lock().spawn(AsyncTask::new(future));
     }
 
     pub fn run(&self) {
@@ -232,20 +224,30 @@ pub fn get_task_by_tid(tid: usize) -> Option<Task> {
     MLFQ.lock().get_task_by_tid(tid)
 }
 
-/// append task (GLOBAL_BOXED_FUTURE) to task of tid
-pub fn handle_append_task(task: Task) -> (Task, usize) {
+pub fn handle_append_task(task: Task, future: usize) -> (Task, usize) {
     let mut ret = usize::MAX;
+
+    let future = restore_boxed_PinBoxFuture(future);
 
     if task.tid != IO_TASK_TID && task.io {
         if let Some(task) = get_task_by_tid(IO_TASK_TID) {
-            task.append();
+            task.append(future);
             add_task_to_queue(task);
         }
         ret = IO_TASK_TID;
     } else {
-        task.append();
+        task.append(future);
         ret = task.tid;
     }
 
     (task, ret)
+}
+
+/// get addr of PinBoxFuture b
+pub fn leak_boxed_PinBoxFuture(b: PinBoxFuture) -> usize {
+    Box::leak(Box::new(b)) as *mut _ as usize
+}
+
+fn restore_boxed_PinBoxFuture(a: usize) -> PinBoxFuture {
+    unsafe { *Box::from_raw(a as *mut PinBoxFuture) }
 }

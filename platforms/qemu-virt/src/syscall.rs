@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::{
-    tasks::{handle_append_task, spawn, Task, GLOBAL_BOXED_FUTURE},
+    tasks::{handle_append_task, spawn, Task, leak_boxed_PinBoxFuture},
     thread,
     timer::sleep,
     trap::{pop_on, push_off},
@@ -36,7 +36,7 @@ pub fn handle_syscall(mut task: Task) -> Option<Task> {
             (Some(task), tid)
         }
         SYSCALL_APPEND_TASK => {
-            let (task, ret) = handle_append_task(task);
+            let (task, ret) = handle_append_task(task, arg0);
             (Some(task), ret)
         }
         SYSCALL_YIELD => {
@@ -104,11 +104,8 @@ pub fn sys_append_task<F>(future: F) -> usize
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    drop(core::mem::replace(
-        &mut *GLOBAL_BOXED_FUTURE.lock(),
-        Box::pin(future),
-    ));
-    syscall(SYSCALL_APPEND_TASK, [0, 0, 0])
+    let addr = leak_boxed_PinBoxFuture(Box::pin(future));
+    syscall(SYSCALL_APPEND_TASK, [addr, 0, 0])
 }
 
 pub fn sys_yield() {
