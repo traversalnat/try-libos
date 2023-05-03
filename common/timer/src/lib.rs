@@ -23,3 +23,12 @@ pub fn get_time_us() -> usize {
 pub fn get_time_ms() -> usize {
     TIMER.wait().get_time_us() / 1000
 }
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Instant(u64);
+
+impl Instant {
+    pub fn now() -> Instant {
+        Instant(get_time_us() as u64)
+    }
+}
